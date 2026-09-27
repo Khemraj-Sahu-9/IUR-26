@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
 import { Badge } from '@/components/common/Badge';
-import { LogOut, Wifi, WifiOff, Globe, HeartPulse } from 'lucide-react';
+import { SyncStatusBar } from '@/components/common/SyncStatusBar';
+import { LogOut, Globe, HeartPulse } from 'lucide-react';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -12,20 +13,6 @@ interface AppLayoutProps {
 export const AppLayout: React.FC<AppLayoutProps> = ({ children, title }) => {
   const { profile, role, signOut } = useAuth();
   const { lang, toggleLang, t } = useLanguage();
-  const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
-
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
 
   const roleBadgeMap = {
     asha: { label: t.ashaWorker, variant: 'emerald' as const },
@@ -37,35 +24,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, title }) => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center">
-      {/* Top Banner / Sync Status Bar */}
-      <div
-        className={`w-full py-1 px-4 text-xs font-semibold flex items-center justify-between transition-colors ${
-          isOnline ? 'bg-emerald-700 text-emerald-100' : 'bg-amber-600 text-amber-50'
-        }`}
-      >
-        <div className="flex items-center gap-1.5 max-w-xl mx-auto w-full">
-          {isOnline ? (
-            <>
-              <Wifi className="w-3.5 h-3.5 text-emerald-300" />
-              <span>{t.onlineSynced}</span>
-            </>
-          ) : (
-            <>
-              <WifiOff className="w-3.5 h-3.5 text-amber-200" />
-              <span>{t.offlineLocal}</span>
-            </>
-          )}
-          <div className="ml-auto flex items-center gap-2">
-            <button
-              onClick={toggleLang}
-              className="flex items-center gap-1 px-2 py-0.5 rounded bg-black/20 hover:bg-black/30 text-white font-medium"
-              title="Toggle Language"
-            >
-              <Globe className="w-3 h-3" />
-              <span>{lang === 'hi' ? 'English' : 'हिन्दी'}</span>
-            </button>
-          </div>
-        </div>
+      {/* SyncStatusBar — connectivity & sync state */}
+      <div className="w-full max-w-xl">
+        <SyncStatusBar />
       </div>
 
       {/* Main Header */}
@@ -90,6 +51,14 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, title }) => {
                 {currentRoleInfo.label}
               </Badge>
             </div>
+            <button
+              onClick={toggleLang}
+              className="min-h-[44px] px-2 flex items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 transition-colors text-xs font-semibold gap-1"
+              title="Toggle Language"
+            >
+              <Globe className="w-4 h-4" />
+              <span className="hidden sm:inline">{lang === 'hi' ? 'EN' : 'हि'}</span>
+            </button>
             <button
               onClick={() => signOut()}
               aria-label="Logout"

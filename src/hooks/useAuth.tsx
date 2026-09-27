@@ -5,6 +5,9 @@ import { Profile, UserRole } from '@/types/database';
 import { authService } from '@/services/authService';
 import { auditLogger } from '@/services/auditLogger';
 import { DEMO_CREDENTIALS } from '@/constants/demo';
+import { refreshLocalCache, profileRepo } from '@/services/offlineDataService';
+import { clearLocalDatabase } from '@/services/offlineDatabase';
+import { syncManager } from '@/services/syncManager';
 
 interface AuthContextType {
   user: User | null;
@@ -30,6 +33,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const p = await authService.getProfile(userId);
       setProfile(p);
+      if (p) {
+        // Cache profile locally for offline access
+        await profileRepo.save({
+          id: p.id,
+          user_id: userId,
+          full_name: p.full_name || '',
+          role: p.role,
+          sync_status: 'synced',
+          local_created_at: new Date().toISOString(),
+          local_updated_at: new Date().toISOString(),
+        });
+        // Refresh field data cache and trigger any pending sync
+        if (p.role === 'asha') {
+          refreshLocalCache(userId).then(() => syncManager.sync());
+        }
+      }
       return p;
     } catch (err: unknown) {
       console.error('Failed to load profile:', err);
@@ -114,6 +133,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
     }
     await authService.signOut();
+    // Clear all locally cached data — security: another user must not see previous user's records
+    await clearLocalDatabase();
     setUser(null);
     setProfile(null);
   };

@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorState } from '@/components/common/ErrorState';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { Button } from '@/components/common/Button';
+import { OfflineBanner } from '@/components/common/OfflineBanner';
 import { Users, Plus } from 'lucide-react';
 
 interface PatientsListViewProps {
@@ -137,6 +138,8 @@ export const PatientsListView: React.FC<PatientsListViewProps> = ({
           </Button>
         }
       />
+
+      <OfflineBanner />
 
       <div className="space-y-2.5">
         <SearchBar

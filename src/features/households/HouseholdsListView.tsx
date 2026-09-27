@@ -9,6 +9,7 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorState } from '@/components/common/ErrorState';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { Button } from '@/components/common/Button';
+import { OfflineBanner } from '@/components/common/OfflineBanner';
 import { Home, Plus } from 'lucide-react';
 
 interface HouseholdsListViewProps {
@@ -90,6 +91,8 @@ export const HouseholdsListView: React.FC<HouseholdsListViewProps> = ({
           </Button>
         }
       />
+
+      <OfflineBanner />
 
       <SearchBar
         value={searchQuery}

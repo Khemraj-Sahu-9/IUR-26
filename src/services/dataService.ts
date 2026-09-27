@@ -14,6 +14,9 @@ import {
   Pregnancy,
   PregnancyStatus
 } from '@/types/database';
+import { db, newLocalId, nowISO } from './offlineDatabase';
+import { syncManager } from './syncManager';
+import { connectivityService } from './connectivityService';
 
 
 export interface CreateHouseholdInput {
@@ -50,95 +53,330 @@ export interface UpdatePatientInput {
 export const dataService = {
   // Households
   async getHouseholds(): Promise<Household[]> {
-    const { data, error } = await supabase
-      .from('households')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (error) throw error;
-    return data || [];
+    try {
+      if (connectivityService.isOnline()) {
+        const { data, error } = await supabase
+          .from('households')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (!error && data) {
+          // Merge to Dexie
+          for (const item of data) {
+            const existing = await db.households.get(item.id);
+            if (!existing || existing.sync_status === 'synced') {
+              await db.households.put({
+                ...item,
+                sync_status: 'synced',
+                local_created_at: item.created_at || nowISO(),
+                local_updated_at: item.updated_at || nowISO(),
+              });
+            }
+          }
+          return data;
+        }
+      }
+    } catch (err) {
+      console.warn('Network getHouseholds failed, using local cache', err);
+    }
+    const local = await db.households.toArray();
+    return local.map(h => ({
+      id: h.id,
+      household_code: h.household_code,
+      head_of_family: h.head_of_family,
+      address: h.address,
+      village: h.village,
+      ward: h.ward,
+      assigned_asha_id: h.assigned_asha_id,
+      created_at: h.local_created_at,
+    })) as Household[];
   },
 
   async getHouseholdById(id: string): Promise<Household | null> {
-    const { data, error } = await supabase
-      .from('households')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle();
-    if (error) throw error;
-    return data;
+    try {
+      if (connectivityService.isOnline()) {
+        const { data, error } = await supabase
+          .from('households')
+          .select('*')
+          .eq('id', id)
+          .maybeSingle();
+        if (!error && data) return data;
+      }
+    } catch {
+      // offline fallback
+    }
+    const local = await db.households.get(id);
+    if (!local) return null;
+    return {
+      id: local.id,
+      household_code: local.household_code,
+      head_of_family: local.head_of_family,
+      address: local.address,
+      village: local.village,
+      ward: local.ward,
+      assigned_asha_id: local.assigned_asha_id,
+      created_at: local.local_created_at,
+    } as Household;
   },
 
   async createHousehold(input: CreateHouseholdInput): Promise<Household> {
-    const { data, error } = await supabase
-      .from('households')
-      .insert({
-        household_code: input.household_code.trim(),
-        head_of_family: input.head_of_family.trim(),
-        address: input.address.trim(),
-        village: input.village.trim(),
-        ward: input.ward?.trim() || null,
-        assigned_asha_id: input.assigned_asha_id,
-      })
-      .select()
-      .single();
-    if (error) throw error;
-    return data;
+    const isOnline = connectivityService.isOnline();
+    const id = newLocalId();
+    const ts = nowISO();
+
+    const localRecord = {
+      id,
+      household_code: input.household_code.trim(),
+      head_of_family: input.head_of_family.trim(),
+      address: input.address.trim(),
+      village: input.village.trim(),
+      ward: input.ward?.trim() || null,
+      assigned_asha_id: input.assigned_asha_id,
+      sync_status: (isOnline ? 'synced' : 'pending') as 'synced' | 'pending',
+      local_created_at: ts,
+      local_updated_at: ts,
+      created_offline: !isOnline,
+    };
+
+    await db.households.put(localRecord);
+
+    if (isOnline) {
+      try {
+        const { data, error } = await supabase
+          .from('households')
+          .insert({
+            id: localRecord.id,
+            household_code: localRecord.household_code,
+            head_of_family: localRecord.head_of_family,
+            address: localRecord.address,
+            village: localRecord.village,
+            ward: localRecord.ward,
+            assigned_asha_id: localRecord.assigned_asha_id,
+          })
+          .select()
+          .single();
+        if (!error && data) {
+          await db.households.update(id, { sync_status: 'synced' });
+          return data;
+        }
+      } catch (err) {
+        console.warn('Direct createHousehold online failed, fallback to sync_queue', err);
+      }
+    }
+
+    // Save to queue for background synchronization
+    await syncManager.enqueue('households', id, 'CREATE', {
+      id: localRecord.id,
+      household_code: localRecord.household_code,
+      head_of_family: localRecord.head_of_family,
+      address: localRecord.address,
+      village: localRecord.village,
+      ward: localRecord.ward,
+      assigned_asha_id: localRecord.assigned_asha_id,
+    });
+
+    return {
+      id: localRecord.id,
+      household_code: localRecord.household_code,
+      head_of_family: localRecord.head_of_family,
+      address: localRecord.address,
+      village: localRecord.village,
+      ward: localRecord.ward,
+      assigned_asha_id: localRecord.assigned_asha_id,
+      created_at: localRecord.local_created_at,
+    } as Household;
   },
 
   // Patients
   async getPatients(): Promise<Patient[]> {
-    const { data, error } = await supabase
-      .from('patients')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (error) throw error;
-    return data || [];
+    try {
+      if (connectivityService.isOnline()) {
+        const { data, error } = await supabase
+          .from('patients')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (!error && data) {
+          for (const item of data) {
+            const existing = await db.patients.get(item.id);
+            if (!existing || existing.sync_status === 'synced') {
+              await db.patients.put({
+                ...item,
+                sync_status: 'synced',
+                local_created_at: item.created_at || nowISO(),
+                local_updated_at: item.updated_at || nowISO(),
+              });
+            }
+          }
+          return data;
+        }
+      }
+    } catch {
+      // offline fallback
+    }
+    const local = await db.patients.toArray();
+    return local.map(p => ({
+      id: p.id,
+      household_id: p.household_id,
+      patient_code: p.patient_code,
+      full_name: p.full_name,
+      date_of_birth: p.date_of_birth,
+      gender: p.gender,
+      phone: p.phone,
+      address: p.address,
+      relationship_to_head: p.relationship_to_head,
+      status: p.status,
+      assigned_asha_id: p.assigned_asha_id,
+      created_at: p.local_created_at,
+    })) as Patient[];
   },
 
   async getPatientsByHousehold(householdId: string): Promise<Patient[]> {
-    const { data, error } = await supabase
-      .from('patients')
-      .select('*')
-      .eq('household_id', householdId)
-      .order('created_at', { ascending: false });
-    if (error) throw error;
-    return data || [];
+    try {
+      if (connectivityService.isOnline()) {
+        const { data, error } = await supabase
+          .from('patients')
+          .select('*')
+          .eq('household_id', householdId)
+          .order('created_at', { ascending: false });
+        if (!error && data) return data;
+      }
+    } catch {
+      // offline fallback
+    }
+    const local = await db.patients.where('household_id').equals(householdId).toArray();
+    return local.map(p => ({
+      id: p.id,
+      household_id: p.household_id,
+      patient_code: p.patient_code,
+      full_name: p.full_name,
+      date_of_birth: p.date_of_birth,
+      gender: p.gender,
+      phone: p.phone,
+      address: p.address,
+      relationship_to_head: p.relationship_to_head,
+      status: p.status,
+      assigned_asha_id: p.assigned_asha_id,
+      created_at: p.local_created_at,
+    })) as Patient[];
   },
 
   async getPatientById(id: string): Promise<Patient | null> {
-    const { data, error } = await supabase
-      .from('patients')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle();
-    if (error) throw error;
-    return data;
+    try {
+      if (connectivityService.isOnline()) {
+        const { data, error } = await supabase
+          .from('patients')
+          .select('*')
+          .eq('id', id)
+          .maybeSingle();
+        if (!error && data) return data;
+      }
+    } catch {
+      // offline fallback
+    }
+    const local = await db.patients.get(id);
+    if (!local) return null;
+    return {
+      id: local.id,
+      household_id: local.household_id,
+      patient_code: local.patient_code,
+      full_name: local.full_name,
+      date_of_birth: local.date_of_birth,
+      gender: local.gender,
+      phone: local.phone,
+      address: local.address,
+      relationship_to_head: local.relationship_to_head,
+      status: local.status,
+      assigned_asha_id: local.assigned_asha_id,
+      created_at: local.local_created_at,
+    } as Patient;
   },
 
   async createPatient(input: CreatePatientInput): Promise<Patient> {
-    const { data, error } = await supabase
-      .from('patients')
-      .insert({
-        household_id: input.household_id,
-        patient_code: input.patient_code.trim(),
-        full_name: input.full_name.trim(),
-        date_of_birth: input.date_of_birth || null,
-        gender: input.gender,
-        phone: input.phone?.trim() || null,
-        address: input.address?.trim() || null,
-        relationship_to_head: input.relationship_to_head?.trim() || null,
-        status: input.status || 'active',
-        assigned_asha_id: input.assigned_asha_id,
-      })
-      .select()
-      .single();
-    if (error) throw error;
-    return data;
+    const isOnline = connectivityService.isOnline();
+    const id = newLocalId();
+    const ts = nowISO();
+
+    const localRecord = {
+      id,
+      household_id: input.household_id,
+      patient_code: input.patient_code.trim(),
+      full_name: input.full_name.trim(),
+      date_of_birth: input.date_of_birth || null,
+      gender: input.gender,
+      phone: input.phone?.trim() || null,
+      address: input.address?.trim() || null,
+      relationship_to_head: input.relationship_to_head?.trim() || null,
+      status: input.status || 'active',
+      assigned_asha_id: input.assigned_asha_id,
+      sync_status: (isOnline ? 'synced' : 'pending') as 'synced' | 'pending',
+      local_created_at: ts,
+      local_updated_at: ts,
+      created_offline: !isOnline,
+    };
+
+    await db.patients.put(localRecord);
+
+    const payload = {
+      id: localRecord.id,
+      household_id: localRecord.household_id,
+      patient_code: localRecord.patient_code,
+      full_name: localRecord.full_name,
+      date_of_birth: localRecord.date_of_birth,
+      gender: localRecord.gender,
+      phone: localRecord.phone,
+      address: localRecord.address,
+      relationship_to_head: localRecord.relationship_to_head,
+      status: localRecord.status,
+      assigned_asha_id: localRecord.assigned_asha_id,
+    };
+
+    if (isOnline) {
+      try {
+        const { data, error } = await supabase
+          .from('patients')
+          .insert(payload)
+          .select()
+          .single();
+        if (!error && data) {
+          await db.patients.update(id, { sync_status: 'synced' });
+          return data;
+        }
+      } catch (err) {
+        console.warn('Direct createPatient online failed, fallback to sync_queue', err);
+      }
+    }
+
+    // Enqueue with dependency on household_id
+    await syncManager.enqueue('patients', id, 'CREATE', payload, input.household_id);
+
+    return {
+      ...payload,
+      created_at: localRecord.local_created_at,
+    } as Patient;
   },
 
   async updatePatient(id: string, input: UpdatePatientInput): Promise<Patient> {
+    const isOnline = connectivityService.isOnline();
+    const ts = nowISO();
+
+    const existing = await db.patients.get(id);
+    const updatedLocal = {
+      ...(existing || {}),
+      ...(input.full_name !== undefined ? { full_name: input.full_name.trim() } : {}),
+      ...(input.date_of_birth !== undefined ? { date_of_birth: input.date_of_birth } : {}),
+      ...(input.gender !== undefined ? { gender: input.gender } : {}),
+      ...(input.phone !== undefined ? { phone: input.phone?.trim() || null } : {}),
+      ...(input.relationship_to_head !== undefined ? { relationship_to_head: input.relationship_to_head?.trim() || null } : {}),
+      ...(input.status !== undefined ? { status: input.status } : {}),
+      id,
+      sync_status: (isOnline ? 'synced' : 'pending') as 'synced' | 'pending',
+      local_updated_at: ts,
+    };
+
+    await db.patients.put(updatedLocal as any);
+
     const payload: Record<string, unknown> = {
-      updated_at: new Date().toISOString(),
+      id,
+      updated_at: ts,
     };
     if (input.full_name !== undefined) payload.full_name = input.full_name.trim();
     if (input.date_of_birth !== undefined) payload.date_of_birth = input.date_of_birth;
@@ -147,107 +385,248 @@ export const dataService = {
     if (input.relationship_to_head !== undefined) payload.relationship_to_head = input.relationship_to_head?.trim() || null;
     if (input.status !== undefined) payload.status = input.status;
 
-    const { data, error } = await supabase
-      .from('patients')
-      .update(payload)
-      .eq('id', id)
-      .select()
-      .single();
-    if (error) throw error;
-    return data;
+    if (isOnline) {
+      try {
+        const { data, error } = await supabase
+          .from('patients')
+          .update(payload)
+          .eq('id', id)
+          .select()
+          .single();
+        if (!error && data) {
+          await db.patients.update(id, { sync_status: 'synced' });
+          return data;
+        }
+      } catch (err) {
+        console.warn('Direct updatePatient failed, enqueued', err);
+      }
+    }
+
+    await syncManager.enqueue('patients', id, 'UPDATE', payload);
+    return updatedLocal as unknown as Patient;
   },
 
   // Visits
   async getVisits(): Promise<Visit[]> {
-    const { data, error } = await supabase
-      .from('visits')
-      .select('*')
-      .order('visit_date', { ascending: false });
-    if (error) throw error;
-    return data || [];
+    try {
+      if (connectivityService.isOnline()) {
+        const { data, error } = await supabase
+          .from('visits')
+          .select('*')
+          .order('visit_date', { ascending: false });
+        if (!error && data) {
+          for (const item of data) {
+            const existing = await db.visits.get(item.id);
+            if (!existing || existing.sync_status === 'synced') {
+              await db.visits.put({
+                ...item,
+                sync_status: 'synced',
+                local_created_at: item.created_at || nowISO(),
+                local_updated_at: item.created_at || nowISO(),
+              });
+            }
+          }
+          return data;
+        }
+      }
+    } catch {
+      // offline fallback
+    }
+    const local = await db.visits.toArray();
+    return local.sort((a, b) => new Date(b.visit_date).getTime() - new Date(a.visit_date).getTime()) as unknown as Visit[];
   },
 
   async getVisitsByPatient(patientId: string): Promise<Visit[]> {
-    const { data, error } = await supabase
-      .from('visits')
-      .select('*')
-      .eq('patient_id', patientId)
-      .order('visit_date', { ascending: false });
-    if (error) throw error;
-    return data || [];
+    try {
+      if (connectivityService.isOnline()) {
+        const { data, error } = await supabase
+          .from('visits')
+          .select('*')
+          .eq('patient_id', patientId)
+          .order('visit_date', { ascending: false });
+        if (!error && data) return data;
+      }
+    } catch {
+      // offline fallback
+    }
+    const local = await db.visits.where('patient_id').equals(patientId).toArray();
+    return local.sort((a, b) => new Date(b.visit_date).getTime() - new Date(a.visit_date).getTime()) as unknown as Visit[];
   },
 
   // Follow-ups
   async getFollowUps(): Promise<FollowUp[]> {
-    const { data, error } = await supabase
-      .from('follow_ups')
-      .select('*')
-      .order('due_date', { ascending: true });
-    if (error) throw error;
-    return data || [];
+    try {
+      if (connectivityService.isOnline()) {
+        const { data, error } = await supabase
+          .from('follow_ups')
+          .select('*')
+          .order('due_date', { ascending: true });
+        if (!error && data) {
+          for (const item of data) {
+            const existing = await db.follow_ups.get(item.id);
+            if (!existing || existing.sync_status === 'synced') {
+              await db.follow_ups.put({
+                ...item,
+                sync_status: 'synced',
+                local_created_at: item.created_at || nowISO(),
+                local_updated_at: item.updated_at || nowISO(),
+              });
+            }
+          }
+          return data;
+        }
+      }
+    } catch {
+      // offline fallback
+    }
+    const local = await db.follow_ups.toArray();
+    return local.sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime()) as unknown as FollowUp[];
   },
 
   // Medicines Catalog
   async getMedicines(): Promise<Medicine[]> {
-    const { data, error } = await supabase
-      .from('medicines')
-      .select('*')
-      .eq('active', true)
-      .order('name', { ascending: true });
-    if (error) throw error;
-    return data || [];
+    try {
+      if (connectivityService.isOnline()) {
+        const { data, error } = await supabase
+          .from('medicines')
+          .select('*')
+          .eq('active', true)
+          .order('name', { ascending: true });
+        if (!error && data) {
+          for (const item of data) {
+            await db.medicines.put({
+              ...item,
+              sync_status: 'synced',
+              local_created_at: item.created_at || nowISO(),
+              local_updated_at: item.created_at || nowISO(),
+            });
+          }
+          return data;
+        }
+      }
+    } catch {
+      // offline fallback
+    }
+    const local = await db.medicines.toArray();
+    return local as unknown as Medicine[];
   },
 
   // Medicine Stock
   async getMedicineStock(): Promise<MedicineStock[]> {
-    const { data, error } = await supabase
-      .from('medicine_stock')
-      .select('*, medicine:medicines(*)')
-      .order('quantity', { ascending: true });
-    if (error) throw error;
-    return data || [];
+    try {
+      if (connectivityService.isOnline()) {
+        const { data, error } = await supabase
+          .from('medicine_stock')
+          .select('*, medicine:medicines(*)')
+          .order('quantity', { ascending: true });
+        if (!error && data) {
+          for (const item of data) {
+            await db.medicine_stock.put({
+              id: item.id,
+              medicine_id: item.medicine_id,
+              quantity: item.quantity,
+              min_threshold: item.minimum_quantity || 10,
+              sync_status: 'synced',
+              local_created_at: item.created_at || nowISO(),
+              local_updated_at: item.updated_at || nowISO(),
+            });
+          }
+          return data;
+        }
+      }
+    } catch {
+      // offline fallback
+    }
+    const local = await db.medicine_stock.toArray();
+    const medicines = await db.medicines.toArray();
+    const medMap = new Map(medicines.map(m => [m.id, m]));
+    return local.map(s => ({
+      id: s.id,
+      medicine_id: s.medicine_id,
+      quantity: s.quantity,
+      minimum_quantity: s.min_threshold,
+      medicine: medMap.get(s.medicine_id),
+    })) as unknown as MedicineStock[];
   },
 
   // Medicine Orders
   async getMedicineOrders(): Promise<MedicineOrder[]> {
-    const { data, error } = await supabase
-      .from('medicine_orders')
-      .select('*, medicine:medicines(*)')
-      .order('created_at', { ascending: false });
-    if (error) throw error;
-    return data || [];
+    try {
+      if (connectivityService.isOnline()) {
+        const { data, error } = await supabase
+          .from('medicine_orders')
+          .select('*, medicine:medicines(*)')
+          .order('created_at', { ascending: false });
+        if (!error && data) return data;
+      }
+    } catch {
+      // offline fallback
+    }
+    const local = await db.medicine_orders.toArray();
+    const medicines = await db.medicines.toArray();
+    const medMap = new Map(medicines.map(m => [m.id, m]));
+    return local.map(o => ({
+      id: o.id,
+      medicine_id: o.medicine_id,
+      asha_id: o.asha_id,
+      requested_quantity: o.requested_quantity,
+      status: o.status,
+      notes: o.notes,
+      approved_quantity: o.approved_quantity,
+      medicine: medMap.get(o.medicine_id),
+      created_at: o.local_created_at,
+    })) as unknown as MedicineOrder[];
   },
 
   // Notifications
   async getNotifications(): Promise<Notification[]> {
-    const { data, error } = await supabase
-      .from('notifications')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (error) throw error;
-    return data || [];
+    try {
+      if (connectivityService.isOnline()) {
+        const { data, error } = await supabase
+          .from('notifications')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (!error && data) return data;
+      }
+    } catch {
+      // offline fallback
+    }
+    const local = await db.notifications.toArray();
+    return local as unknown as Notification[];
   },
 
   // ASHA Workers (For Supervisor/Manager views)
   async getAshaWorkers(): Promise<AshaWorker[]> {
-    const { data, error } = await supabase
-      .from('asha_workers')
-      .select('*')
-      .order('village', { ascending: true });
-    if (error) throw error;
-    return data || [];
+    try {
+      if (connectivityService.isOnline()) {
+        const { data, error } = await supabase
+          .from('asha_workers')
+          .select('*')
+          .order('village', { ascending: true });
+        if (!error && data) return data;
+      }
+    } catch {
+      // offline fallback
+    }
+    return [];
   },
-  // ─── Phase 3: Visits, Follow-ups, Referrals ───────────────────
 
   // Get a single visit by ID
   async getVisitById(id: string): Promise<Visit | null> {
-    const { data, error } = await supabase
-      .from('visits')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle();
-    if (error) throw error;
-    return data;
+    try {
+      if (connectivityService.isOnline()) {
+        const { data, error } = await supabase
+          .from('visits')
+          .select('*')
+          .eq('id', id)
+          .maybeSingle();
+        if (!error && data) return data;
+      }
+    } catch {
+      // offline fallback
+    }
+    const local = await db.visits.get(id);
+    return (local as unknown as Visit) || null;
   },
 
   // Create a new visit (and optional auto follow-up)
@@ -261,29 +640,63 @@ export const dataService = {
     next_follow_up_date?: string;
     follow_up_note?: string;
   }): Promise<Visit> {
-    const payload: Record<string, unknown> = {
+    const isOnline = connectivityService.isOnline();
+    const id = newLocalId();
+    const ts = nowISO();
+
+    const localRecord = {
+      id,
       patient_id: input.patient_id,
       asha_id: input.asha_id,
+      visit_date: input.visit_date || ts.split('T')[0],
       visit_type: input.visit_type,
       notes: input.notes?.trim() || null,
       follow_up_required: input.follow_up_required ?? false,
+      next_follow_up_date: input.follow_up_required && input.next_follow_up_date ? input.next_follow_up_date : null,
+      follow_up_note: input.follow_up_required && input.follow_up_note ? input.follow_up_note.trim() : null,
+      sync_status: (isOnline ? 'synced' : 'pending') as 'synced' | 'pending',
+      local_created_at: ts,
+      local_updated_at: ts,
+      created_offline: !isOnline,
     };
-    if (input.visit_date) payload.visit_date = input.visit_date;
-    if (input.follow_up_required && input.next_follow_up_date) {
-      payload.next_follow_up_date = input.next_follow_up_date;
+
+    await db.visits.put(localRecord);
+
+    const payload: Record<string, unknown> = {
+      id: localRecord.id,
+      patient_id: localRecord.patient_id,
+      asha_id: localRecord.asha_id,
+      visit_type: localRecord.visit_type,
+      notes: localRecord.notes,
+      follow_up_required: localRecord.follow_up_required,
+      visit_date: localRecord.visit_date,
+    };
+    if (localRecord.follow_up_required && localRecord.next_follow_up_date) {
+      payload.next_follow_up_date = localRecord.next_follow_up_date;
     }
 
-    const { data, error } = await supabase
-      .from('visits')
-      .insert(payload)
-      .select()
-      .single();
-    if (error) throw error;
+    if (isOnline) {
+      try {
+        const { data, error } = await supabase
+          .from('visits')
+          .insert(payload)
+          .select()
+          .single();
+        if (!error && data) {
+          await db.visits.update(id, { sync_status: 'synced' });
+        }
+      } catch (err) {
+        console.warn('Direct createVisit online failed, queued', err);
+      }
+    }
+
+    // Enqueue sync operation with dependency on patient_id
+    await syncManager.enqueue('visits', id, 'CREATE', payload, input.patient_id);
 
     await auditLogger.log({
       action: 'VISIT_CREATED',
       tableName: 'visits',
-      recordId: data.id,
+      recordId: id,
       metadata: { patient_id: input.patient_id, visit_type: input.visit_type },
     });
 
@@ -297,18 +710,25 @@ export const dataService = {
       });
     }
 
-    return data as Visit;
+    return localRecord as unknown as Visit;
   },
 
   // Get follow-ups for a specific patient
   async getFollowUpsByPatient(patientId: string): Promise<FollowUp[]> {
-    const { data, error } = await supabase
-      .from('follow_ups')
-      .select('*')
-      .eq('patient_id', patientId)
-      .order('due_date', { ascending: true });
-    if (error) throw error;
-    return data || [];
+    try {
+      if (connectivityService.isOnline()) {
+        const { data, error } = await supabase
+          .from('follow_ups')
+          .select('*')
+          .eq('patient_id', patientId)
+          .order('due_date', { ascending: true });
+        if (!error && data) return data;
+      }
+    } catch {
+      // offline fallback
+    }
+    const local = await db.follow_ups.where('patient_id').equals(patientId).toArray();
+    return local.sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime()) as unknown as FollowUp[];
   },
 
   // Create a follow-up (standalone or from visit)
@@ -318,73 +738,149 @@ export const dataService = {
     due_date: string;
     notes?: string;
   }): Promise<FollowUp> {
-    const { data, error } = await supabase
-      .from('follow_ups')
-      .insert({
-        patient_id: input.patient_id,
-        assigned_asha_id: input.assigned_asha_id,
-        due_date: input.due_date,
-        notes: input.notes || null,
-        status: 'pending',
-      })
-      .select()
-      .single();
-    if (error) throw error;
+    const isOnline = connectivityService.isOnline();
+    const id = newLocalId();
+    const ts = nowISO();
+
+    const localRecord = {
+      id,
+      patient_id: input.patient_id,
+      assigned_asha_id: input.assigned_asha_id,
+      due_date: input.due_date,
+      notes: input.notes || null,
+      status: 'pending' as const,
+      sync_status: (isOnline ? 'synced' : 'pending') as 'synced' | 'pending',
+      local_created_at: ts,
+      local_updated_at: ts,
+      created_offline: !isOnline,
+    };
+
+    await db.follow_ups.put(localRecord);
+
+    const payload = {
+      id: localRecord.id,
+      patient_id: localRecord.patient_id,
+      assigned_asha_id: localRecord.assigned_asha_id,
+      due_date: localRecord.due_date,
+      notes: localRecord.notes,
+      status: localRecord.status,
+    };
+
+    if (isOnline) {
+      try {
+        const { data, error } = await supabase
+          .from('follow_ups')
+          .insert(payload)
+          .select()
+          .single();
+        if (!error && data) {
+          await db.follow_ups.update(id, { sync_status: 'synced' });
+        }
+      } catch (err) {
+        console.warn('Direct createFollowUp failed, queued', err);
+      }
+    }
+
+    await syncManager.enqueue('follow_ups', id, 'CREATE', payload, input.patient_id);
 
     await auditLogger.log({
       action: 'FOLLOW_UP_CREATED',
       tableName: 'follow_ups',
-      recordId: data.id,
+      recordId: id,
       metadata: { patient_id: input.patient_id, due_date: input.due_date },
     });
 
-    return data as FollowUp;
+    return localRecord as unknown as FollowUp;
   },
 
   // Update follow-up (mark completed, missed, etc.)
   async updateFollowUp(id: string, updates: { status: string; completed_at?: string; notes?: string }): Promise<FollowUp> {
-    const payload: Record<string, unknown> = { status: updates.status, updated_at: new Date().toISOString() };
+    const isOnline = connectivityService.isOnline();
+    const ts = nowISO();
+
+    const existing = await db.follow_ups.get(id);
+    const updated = {
+      ...(existing || {}),
+      status: updates.status as any,
+      ...(updates.completed_at ? { completed_at: updates.completed_at } : {}),
+      ...(updates.notes !== undefined ? { notes: updates.notes } : {}),
+      id,
+      sync_status: (isOnline ? 'synced' : 'pending') as 'synced' | 'pending',
+      local_updated_at: ts,
+    };
+
+    await db.follow_ups.put(updated as any);
+
+    const payload: Record<string, unknown> = {
+      id,
+      status: updates.status,
+      updated_at: ts,
+    };
     if (updates.completed_at) payload.completed_at = updates.completed_at;
     if (updates.notes !== undefined) payload.notes = updates.notes;
 
-    const { data, error } = await supabase
-      .from('follow_ups')
-      .update(payload)
-      .eq('id', id)
-      .select()
-      .single();
-    if (error) throw error;
+    if (isOnline) {
+      try {
+        const { data, error } = await supabase
+          .from('follow_ups')
+          .update(payload)
+          .eq('id', id)
+          .select()
+          .single();
+        if (!error && data) {
+          await db.follow_ups.update(id, { sync_status: 'synced' });
+        }
+      } catch (err) {
+        console.warn('Direct updateFollowUp failed, queued', err);
+      }
+    }
+
+    await syncManager.enqueue('follow_ups', id, 'UPDATE', payload);
 
     const auditAction = updates.status === 'completed' ? 'FOLLOW_UP_COMPLETED' : 'FOLLOW_UP_MISSED';
     await auditLogger.log({
       action: auditAction,
       tableName: 'follow_ups',
-      recordId: data.id,
+      recordId: id,
       metadata: { status: updates.status },
     });
 
-    return data as FollowUp;
+    return updated as unknown as FollowUp;
   },
 
   // Get referrals for a specific patient
   async getReferralsByPatient(patientId: string): Promise<Referral[]> {
-    const { data, error } = await supabase
-      .from('referrals')
-      .select('*')
-      .eq('patient_id', patientId)
-      .order('referral_date', { ascending: false });
-    if (error) throw error;
-    return data || [];
+    try {
+      if (connectivityService.isOnline()) {
+        const { data, error } = await supabase
+          .from('referrals')
+          .select('*')
+          .eq('patient_id', patientId)
+          .order('referral_date', { ascending: false });
+        if (!error && data) return data;
+      }
+    } catch {
+      // offline fallback
+    }
+    const local = await db.referrals.where('patient_id').equals(patientId).toArray();
+    return local.sort((a, b) => new Date(b.referral_date).getTime() - new Date(a.referral_date).getTime()) as unknown as Referral[];
   },
 
   // Get all referrals
   async getReferrals(): Promise<Referral[]> {
-    const { data, error } = await supabase
-      .from('referrals')
-      .select('*')
-      .order('referral_date', { ascending: false });
-    if (error) throw error;
-    return data || [];
+    try {
+      if (connectivityService.isOnline()) {
+        const { data, error } = await supabase
+          .from('referrals')
+          .select('*')
+          .order('referral_date', { ascending: false });
+        if (!error && data) return data;
+      }
+    } catch {
+      // offline fallback
+    }
+    const local = await db.referrals.toArray();
+    return local.sort((a, b) => new Date(b.referral_date).getTime() - new Date(a.referral_date).getTime()) as unknown as Referral[];
   },
 
   // Create a referral
@@ -397,57 +893,118 @@ export const dataService = {
     status?: string;
     notes?: string;
   }): Promise<Referral> {
-    const { data, error } = await supabase
-      .from('referrals')
-      .insert({
-        patient_id: input.patient_id,
-        asha_id: input.asha_id,
-        referred_to: input.referred_to,
-        reason: input.reason,
-        referral_date: input.referral_date || new Date().toISOString().split('T')[0],
-        status: input.status || 'referred',
-        notes: input.notes || null,
-      })
-      .select()
-      .single();
-    if (error) throw error;
+    const isOnline = connectivityService.isOnline();
+    const id = newLocalId();
+    const ts = nowISO();
+
+    const localRecord = {
+      id,
+      patient_id: input.patient_id,
+      asha_id: input.asha_id,
+      referred_to: input.referred_to,
+      reason: input.reason,
+      referral_date: input.referral_date || ts.split('T')[0],
+      status: (input.status || 'pending') as any,
+      notes: input.notes || null,
+      sync_status: (isOnline ? 'synced' : 'pending') as 'synced' | 'pending',
+      local_created_at: ts,
+      local_updated_at: ts,
+      created_offline: !isOnline,
+    };
+
+    await db.referrals.put(localRecord);
+
+    const payload = {
+      id: localRecord.id,
+      patient_id: localRecord.patient_id,
+      asha_id: localRecord.asha_id,
+      referred_to: localRecord.referred_to,
+      reason: localRecord.reason,
+      referral_date: localRecord.referral_date,
+      status: localRecord.status,
+      notes: localRecord.notes,
+    };
+
+    if (isOnline) {
+      try {
+        const { data, error } = await supabase
+          .from('referrals')
+          .insert(payload)
+          .select()
+          .single();
+        if (!error && data) {
+          await db.referrals.update(id, { sync_status: 'synced' });
+        }
+      } catch (err) {
+        console.warn('Direct createReferral failed, queued', err);
+      }
+    }
+
+    await syncManager.enqueue('referrals', id, 'CREATE', payload, input.patient_id);
 
     await auditLogger.log({
       action: 'REFERRAL_CREATED',
       tableName: 'referrals',
-      recordId: data.id,
+      recordId: id,
       metadata: { patient_id: input.patient_id, referred_to: input.referred_to },
     });
 
-    return data as Referral;
+    return localRecord as unknown as Referral;
   },
 
   // Update referral status/details
   async updateReferral(id: string, updates: { status?: string; notes?: string; referral_date?: string }): Promise<Referral> {
-    const payload: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    const isOnline = connectivityService.isOnline();
+    const ts = nowISO();
+
+    const existing = await db.referrals.get(id);
+    const updated = {
+      ...(existing || {}),
+      ...(updates.status ? { status: updates.status as any } : {}),
+      ...(updates.notes !== undefined ? { notes: updates.notes } : {}),
+      ...(updates.referral_date ? { referral_date: updates.referral_date } : {}),
+      id,
+      sync_status: (isOnline ? 'synced' : 'pending') as 'synced' | 'pending',
+      local_updated_at: ts,
+    };
+
+    await db.referrals.put(updated as any);
+
+    const payload: Record<string, unknown> = {
+      id,
+      updated_at: ts,
+    };
     if (updates.status) payload.status = updates.status;
     if (updates.notes !== undefined) payload.notes = updates.notes;
     if (updates.referral_date) payload.referral_date = updates.referral_date;
 
-    const { data, error } = await supabase
-      .from('referrals')
-      .update(payload)
-      .eq('id', id)
-      .select()
-      .single();
-    if (error) throw error;
+    if (isOnline) {
+      try {
+        const { data, error } = await supabase
+          .from('referrals')
+          .update(payload)
+          .eq('id', id)
+          .select()
+          .single();
+        if (!error && data) {
+          await db.referrals.update(id, { sync_status: 'synced' });
+        }
+      } catch (err) {
+        console.warn('Direct updateReferral failed, queued', err);
+      }
+    }
+
+    await syncManager.enqueue('referrals', id, 'UPDATE', payload);
 
     await auditLogger.log({
       action: 'REFERRAL_STATUS_UPDATED',
       tableName: 'referrals',
-      recordId: data.id,
+      recordId: id,
       metadata: { status: updates.status },
     });
 
-    return data as Referral;
+    return updated as unknown as Referral;
   },
-
-  // ─── Phase 4: Medicine Requests & Stock ────────────────────────
 
   // ASHA creates a medicine request
   async createMedicineOrder(input: {
@@ -455,26 +1012,60 @@ export const dataService = {
     medicine_id: string;
     requested_quantity: number;
   }): Promise<MedicineOrder> {
-    const { data, error } = await supabase
-      .from('medicine_orders')
-      .insert({
-        asha_id: input.asha_id,
-        medicine_id: input.medicine_id,
-        requested_quantity: input.requested_quantity,
-        status: 'pending',
-      })
-      .select('*, medicine:medicines(*)')
-      .single();
-    if (error) throw error;
+    const isOnline = connectivityService.isOnline();
+    const id = newLocalId();
+    const ts = nowISO();
+
+    const localRecord = {
+      id,
+      asha_id: input.asha_id,
+      medicine_id: input.medicine_id,
+      requested_quantity: input.requested_quantity,
+      status: 'pending' as const,
+      sync_status: (isOnline ? 'synced' : 'pending') as 'synced' | 'pending',
+      local_created_at: ts,
+      local_updated_at: ts,
+      created_offline: !isOnline,
+    };
+
+    await db.medicine_orders.put(localRecord);
+
+    const payload = {
+      id: localRecord.id,
+      asha_id: localRecord.asha_id,
+      medicine_id: localRecord.medicine_id,
+      requested_quantity: localRecord.requested_quantity,
+      status: localRecord.status,
+    };
+
+    let resultRecord: MedicineOrder = localRecord as unknown as MedicineOrder;
+
+    if (isOnline) {
+      try {
+        const { data, error } = await supabase
+          .from('medicine_orders')
+          .insert(payload)
+          .select('*, medicine:medicines(*)')
+          .single();
+        if (!error && data) {
+          await db.medicine_orders.update(id, { sync_status: 'synced' });
+          resultRecord = data;
+        }
+      } catch (err) {
+        console.warn('Direct createMedicineOrder failed, queued', err);
+      }
+    }
+
+    await syncManager.enqueue('medicine_orders', id, 'CREATE', payload);
 
     await auditLogger.log({
       action: 'MEDICINE_REQUEST_CREATED',
       tableName: 'medicine_orders',
-      recordId: data.id,
+      recordId: id,
       metadata: { medicine_id: input.medicine_id, quantity: input.requested_quantity },
     });
 
-    return data as MedicineOrder;
+    return resultRecord;
   },
 
   // Supervisor/Manager approves or rejects a medicine order

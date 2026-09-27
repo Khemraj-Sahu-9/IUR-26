@@ -23,16 +23,64 @@ An offline-first, mobile-first progressive web application (PWA) designed to emp
 
 ---
 
+## 🚀 Quickstart & Local Development
+
+### 1. Prerequisites
+- **Node.js**: v18.0.0 or higher (v20+ recommended)
+- **npm**: v9+
+
+### 2. Installation
+```bash
+git clone <repository-url>
+cd "IUR 26"
+npm install
+```
+
+### 3. Environment Variables
+Copy `.env.example` to `.env` (or `.env.local`):
+```bash
+cp .env.example .env
+```
+Ensure your Supabase project parameters are populated:
+```env
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+VITE_SUPABASE_ANON_KEY=your-public-anon-key
+```
+
+### 4. Run Development Server
+```bash
+npm run dev
+```
+The application will boot at `http://localhost:3000`.
+
+### 5. Production Build
+```bash
+npm run build
+npm run preview
+```
+
+### 6. Run Automated Playwright Tests
+```bash
+npm run test:e2e
+```
+
+---
+
+## 👥 Demo Personas (1-Tap Fast Testing)
+
+For judging, demonstrations, and E2E testing, 1-tap demo personas are available on the login screen:
+
+| Role | Demo Persona | Email | Assigned Scope |
+|---|---|---|---|
+| **ASHA Worker** | Sunita Devi | `asha.sunita@demo.phc.in` | Ward 4 (Rampur Village) |
+| **Supervisor** | Dr. Anita Roy | `supervisor.anita@demo.phc.in` | North Block PHC Sector |
+| **PHC Manager** | Rajesh Sharma | `manager.rajesh@demo.phc.in` | Central Health Centre Depot |
+
+---
+
 ## 📂 Documentation Directory
 - [System Architecture](docs/architecture.md)
 - [Database Schema & ERD](docs/database.md)
 - [Security & Access Control](docs/security.md)
 - [Offline-Sync Engine](docs/offline-sync.md)
 - [Hackathon Demo Choreography](docs/demo.md)
-
----
-
-## 👥 Personas & Roles
-1. **ASHA Worker**: Daily visits, household registrations, maternal & child tracking, medicine refill requests.
-2. **Supervisor**: Field monitoring, ASHA oversight, medicine request approval/rejection.
-3. **PHC Manager**: Drug inventory management, aggregated facility reporting, sector supply distribution.

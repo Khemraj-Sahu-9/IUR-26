@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabaseClient';
 
 export interface AuditLogPayload {
-  action: 'PATIENT_CREATED' | 'VISIT_CREATED' | 'MEDICINE_REQUEST_CREATED' | 'MEDICINE_REQUEST_APPROVED' | 'MEDICINE_REQUEST_REJECTED' | 'USER_LOGIN' | 'USER_LOGOUT';
+  action: 'PATIENT_CREATED' | 'VISIT_CREATED' | 'FOLLOW_UP_CREATED' | 'FOLLOW_UP_COMPLETED' | 'FOLLOW_UP_MISSED' | 'REFERRAL_CREATED' | 'REFERRAL_STATUS_UPDATED' | 'MEDICINE_REQUEST_CREATED' | 'MEDICINE_REQUEST_APPROVED' | 'MEDICINE_REQUEST_REJECTED' | 'USER_LOGIN' | 'USER_LOGOUT';
   tableName: string;
   recordId: string;
   metadata?: Record<string, unknown>;

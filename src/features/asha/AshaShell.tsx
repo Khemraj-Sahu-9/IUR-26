@@ -1,159 +1,203 @@
-import React, { useEffect, useState } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { dataService } from '@/services/dataService';
-import { Patient, Household, Visit } from '@/types/database';
+import React, { useState } from 'react';
+import { Household, Patient } from '@/types/database';
+import { AshaDashboard } from './AshaDashboard';
+import { HouseholdsListView } from '@/features/households/HouseholdsListView';
+import { AddHouseholdView } from '@/features/households/AddHouseholdView';
+import { HouseholdDetailsView } from '@/features/households/HouseholdDetailsView';
+import { PatientsListView } from '@/features/patients/PatientsListView';
+import { AddPatientView } from '@/features/patients/AddPatientView';
+import { PatientProfileView } from '@/features/patients/PatientProfileView';
+import { EditPatientView } from '@/features/patients/EditPatientView';
+import { AshaProfileView } from '@/features/profile/AshaProfileView';
+import { BottomNav, AshaTab } from '@/components/navigation/BottomNav';
 import { Card } from '@/components/common/Card';
-import { Badge } from '@/components/common/Badge';
-import { LoadingSpinner } from '@/components/common/LoadingSpinner';
-import { Users, Home, Calendar, Pill, AlertCircle } from 'lucide-react';
+import { PageHeader } from '@/components/common/PageHeader';
+import { CheckSquare } from 'lucide-react';
+
+type AshaView =
+  | { name: 'dashboard' }
+  | { name: 'households_list' }
+  | { name: 'add_household' }
+  | { name: 'household_details'; household: Household }
+  | { name: 'patients_list' }
+  | { name: 'add_patient'; household?: Household }
+  | { name: 'patient_profile'; patient: Patient }
+  | { name: 'edit_patient'; patient: Patient }
+  | { name: 'tasks' }
+  | { name: 'profile' };
 
 export const AshaShell: React.FC = () => {
-  const { profile } = useAuth();
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [households, setHouseholds] = useState<Household[]>([]);
-  const [visits, setVisits] = useState<Visit[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [currentView, setCurrentView] = useState<AshaView>({ name: 'dashboard' });
 
-  useEffect(() => {
-    const loadAshaData = async () => {
-      try {
-        setLoading(true);
-        const [pts, hhs, vsts] = await Promise.all([
-          dataService.getPatients(),
-          dataService.getHouseholds(),
-          dataService.getVisits(),
-        ]);
-        setPatients(pts);
-        setHouseholds(hhs);
-        setVisits(vsts);
-      } catch (err: unknown) {
-        console.error('Failed to load ASHA data:', err);
-        setError('Notice: Initializing local village register.');
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Map view to active bottom navigation tab
+  const getActiveTab = (): AshaTab => {
+    switch (currentView.name) {
+      case 'dashboard':
+        return 'home';
+      case 'households_list':
+      case 'add_household':
+      case 'household_details':
+        return 'households';
+      case 'patients_list':
+      case 'add_patient':
+      case 'patient_profile':
+      case 'edit_patient':
+        return 'patients';
+      case 'tasks':
+        return 'tasks';
+      case 'profile':
+        return 'profile';
+      default:
+        return 'home';
+    }
+  };
 
-    loadAshaData();
-  }, []);
+  const handleTabChange = (tab: AshaTab) => {
+    switch (tab) {
+      case 'home':
+        setCurrentView({ name: 'dashboard' });
+        break;
+      case 'households':
+        setCurrentView({ name: 'households_list' });
+        break;
+      case 'patients':
+        setCurrentView({ name: 'patients_list' });
+        break;
+      case 'tasks':
+        setCurrentView({ name: 'tasks' });
+        break;
+      case 'profile':
+        setCurrentView({ name: 'profile' });
+        break;
+    }
+  };
 
   return (
-    <div className="space-y-4">
-      {/* Welcome & Shift Card */}
-      <Card className="bg-gradient-to-br from-emerald-600 to-emerald-800 text-white border-0">
-        <div className="space-y-1">
-          <p className="text-emerald-100 text-xs font-semibold uppercase tracking-wider">
-            ASHA Field Dashboard • आशा कार्यक्षेत्र
-          </p>
-          <h2 className="text-xl font-bold">
-            Namaste, {profile?.full_name || 'Worker'}
-          </h2>
-          <p className="text-sm text-emerald-100">
-            Assigned Ward: <span className="font-semibold text-white">Ward 4 (Rampur)</span>
-          </p>
+    <div className="pb-20">
+      {/* 1. Dashboard View */}
+      {currentView.name === 'dashboard' && (
+        <AshaDashboard
+          onNavigateHouseholds={() => setCurrentView({ name: 'households_list' })}
+          onNavigatePatients={() => setCurrentView({ name: 'patients_list' })}
+          onAddHousehold={() => setCurrentView({ name: 'add_household' })}
+          onAddPatient={() => setCurrentView({ name: 'add_patient' })}
+          onSelectPatient={(patient) => setCurrentView({ name: 'patient_profile', patient })}
+        />
+      )}
+
+      {/* 2. Households List */}
+      {currentView.name === 'households_list' && (
+        <HouseholdsListView
+          onSelectHousehold={(household) =>
+            setCurrentView({ name: 'household_details', household })
+          }
+          onAddHousehold={() => setCurrentView({ name: 'add_household' })}
+        />
+      )}
+
+      {/* 3. Add Household */}
+      {currentView.name === 'add_household' && (
+        <AddHouseholdView
+          onBack={() => setCurrentView({ name: 'households_list' })}
+          onSuccess={(newHousehold) =>
+            setCurrentView({ name: 'household_details', household: newHousehold })
+          }
+        />
+      )}
+
+      {/* 4. Household Details */}
+      {currentView.name === 'household_details' && (
+        <HouseholdDetailsView
+          household={currentView.household}
+          onBack={() => setCurrentView({ name: 'households_list' })}
+          onAddPatient={(household) =>
+            setCurrentView({ name: 'add_patient', household })
+          }
+          onSelectPatient={(patient) =>
+            setCurrentView({ name: 'patient_profile', patient })
+          }
+        />
+      )}
+
+      {/* 5. Patients List */}
+      {currentView.name === 'patients_list' && (
+        <PatientsListView
+          onSelectPatient={(patient) =>
+            setCurrentView({ name: 'patient_profile', patient })
+          }
+          onAddPatient={() => setCurrentView({ name: 'add_patient' })}
+        />
+      )}
+
+      {/* 6. Add Patient (Standalone or from Household) */}
+      {currentView.name === 'add_patient' && (
+        <AddPatientView
+          initialHousehold={currentView.household}
+          onBack={() => {
+            if (currentView.household) {
+              setCurrentView({ name: 'household_details', household: currentView.household });
+            } else {
+              setCurrentView({ name: 'patients_list' });
+            }
+          }}
+          onSuccess={(newPatient) =>
+            setCurrentView({ name: 'patient_profile', patient: newPatient })
+          }
+        />
+      )}
+
+      {/* 7. Patient Profile */}
+      {currentView.name === 'patient_profile' && (
+        <PatientProfileView
+          patient={currentView.patient}
+          onBack={() => setCurrentView({ name: 'patients_list' })}
+          onEdit={() => setCurrentView({ name: 'edit_patient', patient: currentView.patient })}
+          onSelectHousehold={(household) =>
+            setCurrentView({ name: 'household_details', household })
+          }
+        />
+      )}
+
+      {/* 8. Edit Patient */}
+      {currentView.name === 'edit_patient' && (
+        <EditPatientView
+          patient={currentView.patient}
+          onBack={() =>
+            setCurrentView({ name: 'patient_profile', patient: currentView.patient })
+          }
+          onSuccess={(updatedPatient) =>
+            setCurrentView({ name: 'patient_profile', patient: updatedPatient })
+          }
+        />
+      )}
+
+      {/* 9. Tasks Placeholder */}
+      {currentView.name === 'tasks' && (
+        <div className="space-y-4 text-left">
+          <PageHeader
+            title="Daily Tasks • दैनिक कार्य"
+            subtitle="Scheduled home visits & vaccine reminders"
+          />
+          <Card className="p-6 text-center space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center mx-auto">
+              <CheckSquare className="w-6 h-6" />
+            </div>
+            <h4 className="text-base font-bold text-slate-800">Field Task Checklist</h4>
+            <p className="text-xs text-slate-500 max-w-sm mx-auto">
+              Automated high-risk pregnancy follow-ups and immunization due lists will appear here in Phase 3.
+            </p>
+          </Card>
         </div>
-      </Card>
+      )}
 
-      {/* Metrics Row */}
-      <div className="grid grid-cols-2 gap-3">
-        <Card className="p-3 text-left">
-          <div className="flex items-center justify-between text-slate-500 mb-1">
-            <span className="text-xs font-semibold">Households</span>
-            <Home className="w-4 h-4 text-emerald-600" />
-          </div>
-          <div className="text-2xl font-bold text-slate-900">{households.length}</div>
-          <p className="text-[11px] text-slate-500">Registered families</p>
-        </Card>
+      {/* 10. ASHA Profile Tab */}
+      {currentView.name === 'profile' && <AshaProfileView />}
 
-        <Card className="p-3 text-left">
-          <div className="flex items-center justify-between text-slate-500 mb-1">
-            <span className="text-xs font-semibold">Patients</span>
-            <Users className="w-4 h-4 text-emerald-600" />
-          </div>
-          <div className="text-2xl font-bold text-slate-900">{patients.length}</div>
-          <p className="text-[11px] text-slate-500">Total in ward</p>
-        </Card>
-      </div>
-
-      {/* Quick Navigation Cards */}
-      <div className="space-y-2">
-        <h3 className="text-sm font-bold text-slate-800 text-left px-1">
-          Daily Action Areas (Phase 1 Ready)
-        </h3>
-
-        <div className="grid grid-cols-2 gap-2.5">
-          <button className="flex flex-col items-start p-3.5 bg-white border border-slate-200 rounded-xl hover:border-emerald-500 transition-colors text-left shadow-2xs">
-            <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center mb-2">
-              <Home className="w-4 h-4" />
-            </div>
-            <span className="text-sm font-bold text-slate-800">Households</span>
-            <span className="text-xs text-slate-500">Surveys & address</span>
-          </button>
-
-          <button className="flex flex-col items-start p-3.5 bg-white border border-slate-200 rounded-xl hover:border-emerald-500 transition-colors text-left shadow-2xs">
-            <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-800 flex items-center justify-center mb-2">
-              <Users className="w-4 h-4" />
-            </div>
-            <span className="text-sm font-bold text-slate-800">Patients</span>
-            <span className="text-xs text-slate-500">ANC / Child / General</span>
-          </button>
-
-          <button className="flex flex-col items-start p-3.5 bg-white border border-slate-200 rounded-xl hover:border-emerald-500 transition-colors text-left shadow-2xs">
-            <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center mb-2">
-              <Calendar className="w-4 h-4" />
-            </div>
-            <span className="text-sm font-bold text-slate-800">Visits ({visits.length})</span>
-            <span className="text-xs text-slate-500">Home checkups log</span>
-          </button>
-
-          <button className="flex flex-col items-start p-3.5 bg-white border border-slate-200 rounded-xl hover:border-emerald-500 transition-colors text-left shadow-2xs">
-            <div className="w-8 h-8 rounded-lg bg-purple-100 text-purple-800 flex items-center justify-center mb-2">
-              <Pill className="w-4 h-4" />
-            </div>
-            <span className="text-sm font-bold text-slate-800">Drug Kit</span>
-            <span className="text-xs text-slate-500">Stock & requisitions</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Patient Record List (Live RLS Proof) */}
-      <Card className="text-left space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-slate-900">
-            Assigned Village Patients ({patients.length})
-          </h3>
-          <Badge variant="emerald" size="sm">RLS Protected</Badge>
-        </div>
-
-        {loading ? (
-          <LoadingSpinner label="Querying PostgreSQL through Supabase RLS..." size="sm" />
-        ) : error ? (
-          <div className="p-3 text-xs text-slate-600 bg-slate-100 rounded-lg flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-amber-600" />
-            <span>{error}</span>
-          </div>
-        ) : patients.length === 0 ? (
-          <div className="py-6 text-center text-slate-500 text-sm">
-            <p className="font-medium">No patients yet registered.</p>
-            <p className="text-xs text-slate-400 mt-0.5">Seeded records will appear here.</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-slate-100">
-            {patients.map(p => (
-              <div key={p.id} className="py-2.5 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-bold text-slate-800">{p.full_name}</p>
-                  <p className="text-xs text-slate-500">Code: {p.patient_code} • {p.gender}</p>
-                </div>
-                <Badge variant={p.status === 'active' ? 'emerald' : 'slate'} size="sm">
-                  {p.status}
-                </Badge>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
+      {/* Mobile-First Bottom Navigation */}
+      <BottomNav
+        activeTab={getActiveTab()}
+        onTabChange={handleTabChange}
+      />
     </div>
   );
 };

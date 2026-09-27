@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import { translations, Language } from '@/locales/translations';
 
 interface LanguageContextType {
@@ -13,7 +13,7 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [lang, setLangState] = useState<Language>(() => {
     const saved = localStorage.getItem('asha_lang');
-    return (saved === 'en' || saved === 'hi') ? saved : 'hi';
+    return (saved === 'en' || saved === 'hi') ? saved : 'en';
   });
 
   const setLang = (newLang: Language) => {

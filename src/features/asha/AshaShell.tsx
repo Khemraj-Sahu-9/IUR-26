@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Household, Patient } from '@/types/database';
+import { useAuth } from '@/hooks/useAuth';
 import { AshaDashboard } from './AshaDashboard';
 import { HouseholdsListView } from '@/features/households/HouseholdsListView';
 import { AddHouseholdView } from '@/features/households/AddHouseholdView';
@@ -8,11 +9,12 @@ import { PatientsListView } from '@/features/patients/PatientsListView';
 import { AddPatientView } from '@/features/patients/AddPatientView';
 import { PatientProfileView } from '@/features/patients/PatientProfileView';
 import { EditPatientView } from '@/features/patients/EditPatientView';
+import { AddVisitView } from '@/features/visits/AddVisitView';
+import { AddReferralView } from '@/features/referrals/AddReferralView';
+import { FollowUpsListView } from '@/features/followups/FollowUpsListView';
 import { AshaProfileView } from '@/features/profile/AshaProfileView';
+import { MedicineRequestView } from '@/features/medicines/MedicineRequestView';
 import { BottomNav, AshaTab } from '@/components/navigation/BottomNav';
-import { Card } from '@/components/common/Card';
-import { PageHeader } from '@/components/common/PageHeader';
-import { CheckSquare } from 'lucide-react';
 
 type AshaView =
   | { name: 'dashboard' }
@@ -23,10 +25,15 @@ type AshaView =
   | { name: 'add_patient'; household?: Household }
   | { name: 'patient_profile'; patient: Patient }
   | { name: 'edit_patient'; patient: Patient }
+  | { name: 'add_visit'; patient: Patient }
+  | { name: 'add_referral'; patient: Patient }
   | { name: 'tasks' }
+  | { name: 'medicine_requests' }
   | { name: 'profile' };
 
+
 export const AshaShell: React.FC = () => {
+  const { user } = useAuth();
   const [currentView, setCurrentView] = useState<AshaView>({ name: 'dashboard' });
 
   // Map view to active bottom navigation tab
@@ -42,8 +49,12 @@ export const AshaShell: React.FC = () => {
       case 'add_patient':
       case 'patient_profile':
       case 'edit_patient':
+      case 'add_visit':
+      case 'add_referral':
         return 'patients';
       case 'tasks':
+        return 'tasks';
+      case 'medicine_requests':
         return 'tasks';
       case 'profile':
         return 'profile';
@@ -72,6 +83,7 @@ export const AshaShell: React.FC = () => {
     }
   };
 
+
   return (
     <div className="pb-20">
       {/* 1. Dashboard View */}
@@ -79,6 +91,8 @@ export const AshaShell: React.FC = () => {
         <AshaDashboard
           onNavigateHouseholds={() => setCurrentView({ name: 'households_list' })}
           onNavigatePatients={() => setCurrentView({ name: 'patients_list' })}
+          onNavigateTasks={() => setCurrentView({ name: 'tasks' })}
+          onNavigateMedicines={() => setCurrentView({ name: 'medicine_requests' })}
           onAddHousehold={() => setCurrentView({ name: 'add_household' })}
           onAddPatient={() => setCurrentView({ name: 'add_patient' })}
           onSelectPatient={(patient) => setCurrentView({ name: 'patient_profile', patient })}
@@ -155,6 +169,12 @@ export const AshaShell: React.FC = () => {
           onSelectHousehold={(household) =>
             setCurrentView({ name: 'household_details', household })
           }
+          onRecordVisit={(patient) =>
+            setCurrentView({ name: 'add_visit', patient })
+          }
+          onReferPatient={(patient) =>
+            setCurrentView({ name: 'add_referral', patient })
+          }
         />
       )}
 
@@ -171,26 +191,49 @@ export const AshaShell: React.FC = () => {
         />
       )}
 
-      {/* 9. Tasks Placeholder */}
-      {currentView.name === 'tasks' && (
-        <div className="space-y-4 text-left">
-          <PageHeader
-            title="Daily Tasks • दैनिक कार्य"
-            subtitle="Scheduled home visits & vaccine reminders"
-          />
-          <Card className="p-6 text-center space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center mx-auto">
-              <CheckSquare className="w-6 h-6" />
-            </div>
-            <h4 className="text-base font-bold text-slate-800">Field Task Checklist</h4>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto">
-              Automated high-risk pregnancy follow-ups and immunization due lists will appear here in Phase 3.
-            </p>
-          </Card>
-        </div>
+      {/* 9. Record Visit (Phase 3) */}
+      {currentView.name === 'add_visit' && (
+        <AddVisitView
+          patient={currentView.patient}
+          ashaId={user?.id || ''}
+          onBack={() =>
+            setCurrentView({ name: 'patient_profile', patient: currentView.patient })
+          }
+          onSuccess={() =>
+            setCurrentView({ name: 'patient_profile', patient: currentView.patient })
+          }
+        />
       )}
 
-      {/* 10. ASHA Profile Tab */}
+      {/* 10. Refer Patient (Phase 3) */}
+      {currentView.name === 'add_referral' && (
+        <AddReferralView
+          patient={currentView.patient}
+          ashaId={user?.id || ''}
+          onBack={() =>
+            setCurrentView({ name: 'patient_profile', patient: currentView.patient })
+          }
+          onSuccess={() =>
+            setCurrentView({ name: 'patient_profile', patient: currentView.patient })
+          }
+        />
+      )}
+
+      {/* 11. Tasks / Follow-ups (Phase 3 Live) */}
+      {currentView.name === 'tasks' && (
+        <FollowUpsListView
+          onBack={() => setCurrentView({ name: 'dashboard' })}
+        />
+      )}
+
+      {/* 13. Medicine Requests / Drug Kit (Phase 4) */}
+      {currentView.name === 'medicine_requests' && (
+        <MedicineRequestView
+          onBack={() => setCurrentView({ name: 'dashboard' })}
+        />
+      )}
+
+      {/* 12. ASHA Profile Tab */}
       {currentView.name === 'profile' && <AshaProfileView />}
 
       {/* Mobile-First Bottom Navigation */}

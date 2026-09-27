@@ -21,6 +21,8 @@ import {
 interface AshaDashboardProps {
   onNavigateHouseholds: () => void;
   onNavigatePatients: () => void;
+  onNavigateTasks?: () => void;
+  onNavigateMedicines?: () => void;
   onAddHousehold: () => void;
   onAddPatient: () => void;
   onSelectPatient: (patient: Patient) => void;
@@ -29,6 +31,8 @@ interface AshaDashboardProps {
 export const AshaDashboard: React.FC<AshaDashboardProps> = ({
   onNavigateHouseholds,
   onNavigatePatients,
+  onNavigateTasks,
+  onNavigateMedicines,
   onAddHousehold,
   onAddPatient,
   onSelectPatient,
@@ -195,23 +199,32 @@ export const AshaDashboard: React.FC<AshaDashboardProps> = ({
 
           <button
             type="button"
-            className="flex flex-col items-start p-3.5 bg-white border border-slate-200 rounded-xl hover:border-emerald-500 transition-colors text-left shadow-2xs"
+            onClick={onNavigateTasks}
+            className="flex flex-col items-start p-3.5 bg-white border border-slate-200 rounded-xl hover:border-emerald-500 transition-colors text-left shadow-2xs group cursor-pointer"
           >
-            <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center mb-2">
+            <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
               <Calendar className="w-4 h-4" />
             </div>
-            <span className="text-sm font-bold text-slate-800">Visits ({visits.length})</span>
+            <span className="text-sm font-bold text-slate-800">Visits & Tasks</span>
             <span className="text-xs text-slate-500">{t.homeVisitsLog}</span>
           </button>
 
           <button
             type="button"
-            className="flex flex-col items-start p-3.5 bg-white border border-slate-200 rounded-xl hover:border-emerald-500 transition-colors text-left shadow-2xs"
+            onClick={onNavigateMedicines}
+            className="flex flex-col items-start p-3.5 bg-white border border-slate-200 rounded-xl hover:border-emerald-500 transition-colors text-left shadow-2xs group cursor-pointer"
           >
-            <div className="w-8 h-8 rounded-lg bg-purple-100 text-purple-800 flex items-center justify-center mb-2">
+            <div className="w-8 h-8 rounded-lg bg-purple-100 text-purple-800 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
               <Pill className="w-4 h-4" />
             </div>
-            <span className="text-sm font-bold text-slate-800">Drug Kit</span>
+            <div className="flex items-center justify-between w-full">
+              <span className="text-sm font-bold text-slate-800">Drug Kit</span>
+              {pendingOrdersCount > 0 && (
+                <span className="text-xs font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">
+                  {pendingOrdersCount}
+                </span>
+              )}
+            </div>
             <span className="text-xs text-slate-500">{t.drugKitRequisition}</span>
           </button>
         </div>

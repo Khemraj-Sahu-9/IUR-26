@@ -443,5 +443,113 @@ export const dataService = {
 
     return data as Referral;
   },
+
+  // ─── Phase 4: Medicine Requests & Stock ────────────────────────
+
+  // ASHA creates a medicine request
+  async createMedicineOrder(input: {
+    asha_id: string;
+    medicine_id: string;
+    requested_quantity: number;
+  }): Promise<MedicineOrder> {
+    const { data, error } = await supabase
+      .from('medicine_orders')
+      .insert({
+        asha_id: input.asha_id,
+        medicine_id: input.medicine_id,
+        requested_quantity: input.requested_quantity,
+        status: 'pending',
+      })
+      .select('*, medicine:medicines(*)')
+      .single();
+    if (error) throw error;
+
+    await auditLogger.log({
+      action: 'MEDICINE_REQUEST_CREATED',
+      tableName: 'medicine_orders',
+      recordId: data.id,
+      metadata: { medicine_id: input.medicine_id, quantity: input.requested_quantity },
+    });
+
+    return data as MedicineOrder;
+  },
+
+  // Supervisor/Manager approves or rejects a medicine order
+  async updateMedicineOrder(
+    id: string,
+    updates: {
+      status: 'approved' | 'rejected' | 'fulfilled' | 'cancelled';
+      approved_quantity?: number;
+      rejection_reason?: string;
+      reviewed_by?: string;
+    }
+  ): Promise<MedicineOrder> {
+    const payload: Record<string, unknown> = {
+      status: updates.status,
+      updated_at: new Date().toISOString(),
+    };
+    if (updates.approved_quantity !== undefined) payload.approved_quantity = updates.approved_quantity;
+    if (updates.rejection_reason) payload.rejection_reason = updates.rejection_reason;
+    if (updates.reviewed_by) {
+      payload.reviewed_by = updates.reviewed_by;
+      payload.reviewed_at = new Date().toISOString();
+    }
+
+    const { data, error } = await supabase
+      .from('medicine_orders')
+      .update(payload)
+      .eq('id', id)
+      .select('*, medicine:medicines(*)')
+      .single();
+    if (error) throw error;
+
+    const auditAction =
+      updates.status === 'approved'
+        ? 'MEDICINE_REQUEST_APPROVED'
+        : updates.status === 'rejected'
+        ? 'MEDICINE_REQUEST_REJECTED'
+        : updates.status === 'fulfilled'
+        ? 'MEDICINE_REQUEST_FULFILLED'
+        : 'MEDICINE_REQUEST_CANCELLED';
+
+    await auditLogger.log({
+      action: auditAction,
+      tableName: 'medicine_orders',
+      recordId: data.id,
+      metadata: { status: updates.status, approved_quantity: updates.approved_quantity },
+    });
+
+    return data as MedicineOrder;
+  },
+
+  // Manager updates stock quantity for an item
+  async updateStockQuantity(
+    stockId: string,
+    newQuantity: number,
+    minimumQuantity?: number
+  ): Promise<MedicineStock> {
+    const payload: Record<string, unknown> = {
+      quantity: newQuantity,
+      updated_at: new Date().toISOString(),
+    };
+    if (minimumQuantity !== undefined) payload.minimum_quantity = minimumQuantity;
+
+    const { data, error } = await supabase
+      .from('medicine_stock')
+      .update(payload)
+      .eq('id', stockId)
+      .select('*, medicine:medicines(*)')
+      .single();
+    if (error) throw error;
+
+    await auditLogger.log({
+      action: 'STOCK_ADJUSTED',
+      tableName: 'medicine_stock',
+      recordId: stockId,
+      metadata: { quantity: newQuantity, minimum_quantity: minimumQuantity },
+    });
+
+    return data as MedicineStock;
+  },
 };
 

@@ -36,10 +36,10 @@ test.describe('ASHA Saathi - Phase 1 Foundation, Auth & Role Routing', () => {
     await expect(page.getByText(/Daily Action Areas/i)).toBeVisible();
 
     // Verify presence of core action areas
-    await expect(page.getByRole('button', { name: /Households/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Patients/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Visits/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Drug Kit/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Households/i }).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: /Patients/i }).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: /Visits/i }).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: /Drug Kit/i }).first()).toBeVisible();
 
     // Verify logout
     const logoutBtn = page.getByLabel('Logout');

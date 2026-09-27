@@ -80,3 +80,27 @@ flowchart TD
 | **Backend & DB** | Supabase (PostgreSQL 17) | Declarative RLS, built-in Auth, automatic REST APIs, schema migrations via MCP. | Custom Express/NestJS (redundant boilerplate for hackathon timeline). |
 | **Validation** | Zod | Runtime type safety, clear error messages for forms and API contracts. | Manual conditionals (prone to missing validation edge cases). |
 | **Testing** | Playwright | Mobile device emulation (Pixel 7, iPhone SE), headless execution, cross-role auth tests. | Cypress (heavier setup, less granular viewport control). |
+
+## 4. Phase 3 Workflow — Home Visits, Follow-ups & Referrals
+
+```mermaid
+flowchart LR
+    PP["Patient Profile"] --> Action{"ASHA Action"}
+    Action -->|"Record Visit"| VF["AddVisitView"]
+    Action -->|"Refer Patient"| RF["AddReferralView"]
+    
+    VF -->|"Insert visit"| DBV[("visits Table")]
+    VF -->|"Follow-up required?"| FUCheck{"Auto-create?"}
+    FUCheck -->|"Yes"| DBFU[("follow_ups Table")]
+    
+    RF -->|"Insert referral"| DBRef[("referrals Table")]
+    
+    DBFU --> LiveFU["FollowUpsSection & Tasks View"]
+    DBV --> LiveV["VisitHistorySection"]
+    DBRef --> LiveRef["ReferralsSection"]
+```
+
+- **Home Visits (`AddVisitView`)**: ASHA logs routine ANC, PNC, immunization, general checkup, or communicable disease checkups with vitals and clinical notes. If follow-up is checked, an auto-linked follow-up task is scheduled.
+- **Follow-up Reminders (`FollowUpsSection` & `FollowUpsListView`)**: Tracks pending, completed, overdue, and upcoming field tasks with 1-tap "Mark Done" status reconciliation.
+- **Referrals (`AddReferralView` & `ReferralsSection`)**: Direct referral to Sub-Centre, PHC, CHC, or District Hospital with clinical reason, transport details, and attendance tracking.
+

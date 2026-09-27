@@ -6,19 +6,22 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { Card } from '@/components/common/Card';
 import { Badge } from '@/components/common/Badge';
 import { Button } from '@/components/common/Button';
+import { VisitHistorySection } from '@/features/visits/VisitHistorySection';
+import { FollowUpsSection } from '@/features/followups/FollowUpsSection';
+import { ReferralsSection } from '@/features/referrals/ReferralsSection';
 import { 
   User, 
   Calendar, 
   Phone, 
   Home, 
   Clock, 
-  AlertCircle, 
   FileText, 
   Baby, 
   Heart, 
   Pill, 
   ArrowUpRight,
-  Edit3
+  Edit3,
+  Plus
 } from 'lucide-react';
 
 interface PatientProfileViewProps {
@@ -26,6 +29,8 @@ interface PatientProfileViewProps {
   onBack: () => void;
   onEdit: () => void;
   onSelectHousehold?: (household: Household) => void;
+  onRecordVisit?: (patient: Patient) => void;
+  onReferPatient?: (patient: Patient) => void;
 }
 
 export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
@@ -33,6 +38,8 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
   onBack,
   onEdit,
   onSelectHousehold,
+  onRecordVisit,
+  onReferPatient,
 }) => {
   const { t } = useLanguage();
   const [patient] = useState<Patient>(initialPatient);
@@ -116,6 +123,31 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
         </div>
       </Card>
 
+      {/* Primary Field Actions (Phase 3 Core Workflows) */}
+      <div className="grid grid-cols-2 gap-2.5">
+        <Button
+          type="button"
+          variant="primary"
+          size="md"
+          onClick={() => onRecordVisit?.(patient)}
+          className="min-h-[48px] bg-emerald-700 hover:bg-emerald-800 text-white font-bold flex items-center justify-center gap-1.5 rounded-xl shadow-xs"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Record Visit</span>
+        </Button>
+
+        <Button
+          type="button"
+          variant="outline"
+          size="md"
+          onClick={() => onReferPatient?.(patient)}
+          className="min-h-[48px] bg-purple-50 text-purple-800 border-purple-300 hover:bg-purple-100 font-bold flex items-center justify-center gap-1.5 rounded-xl"
+        >
+          <ArrowUpRight className="w-4 h-4 text-purple-700" />
+          <span>Refer Patient</span>
+        </Button>
+      </div>
+
       {/* Household Membership Card */}
       {household && (
         <Card className="p-3.5 border-slate-200 flex items-center justify-between">
@@ -143,97 +175,105 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
         </Card>
       )}
 
-      {/* Clinical Workflow Placeholders (Explicitly designed for Future Phases) */}
-      <div className="space-y-3">
-        <h3 className="text-sm font-bold text-slate-800 px-1">
-          Clinical Tracking (Future Workflows)
-        </h3>
-
-        {/* Visits Placeholder */}
-        <Card className="p-3.5 border-slate-200 space-y-1.5">
-          <div className="flex items-center justify-between text-slate-800">
-            <div className="flex items-center gap-2 font-bold text-sm">
+      {/* Live Phase 3 Clinical Sections */}
+      <div className="space-y-4">
+        {/* Section 1: Home Visits History */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-2 font-bold text-sm text-slate-800">
               <FileText className="w-4 h-4 text-emerald-600" />
               <span>{t.visitsSection}</span>
             </div>
-            <span className="text-[11px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
-              Phase 3
-            </span>
+            <button
+              type="button"
+              onClick={() => onRecordVisit?.(patient)}
+              className="text-xs font-bold text-emerald-700 hover:text-emerald-900"
+            >
+              + Record
+            </button>
           </div>
-          <p className="text-xs text-slate-500">{t.visitsPlaceholder}</p>
-        </Card>
+          <VisitHistorySection patientId={patient.id} />
+        </div>
 
-        {/* Follow-ups Placeholder */}
-        <Card className="p-3.5 border-slate-200 space-y-1.5">
-          <div className="flex items-center justify-between text-slate-800">
-            <div className="flex items-center gap-2 font-bold text-sm">
+        {/* Section 2: Follow-up Reminders */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-2 font-bold text-sm text-slate-800">
               <Clock className="w-4 h-4 text-amber-600" />
               <span>{t.followupsSection}</span>
             </div>
-            <span className="text-[11px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
-              Phase 3
-            </span>
           </div>
-          <p className="text-xs text-slate-500">{t.followupsPlaceholder}</p>
-        </Card>
+          <FollowUpsSection patientId={patient.id} />
+        </div>
 
-        {/* Maternal / Pregnancy Placeholder (If Female) */}
-        {patient.gender === 'female' && (
-          <Card className="p-3.5 border-slate-200 space-y-1.5">
-            <div className="flex items-center justify-between text-slate-800">
-              <div className="flex items-center gap-2 font-bold text-sm">
-                <Heart className="w-4 h-4 text-pink-600" />
-                <span>{t.maternalSection}</span>
-              </div>
-              <span className="text-[11px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
-                Phase 3
-              </span>
-            </div>
-            <p className="text-xs text-slate-500">{t.maternalPlaceholder}</p>
-          </Card>
-        )}
-
-        {/* Child Immunization Placeholder */}
-        <Card className="p-3.5 border-slate-200 space-y-1.5">
-          <div className="flex items-center justify-between text-slate-800">
-            <div className="flex items-center gap-2 font-bold text-sm">
-              <Baby className="w-4 h-4 text-sky-600" />
-              <span>{t.childSection}</span>
-            </div>
-            <span className="text-[11px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
-              Phase 3
-            </span>
-          </div>
-          <p className="text-xs text-slate-500">{t.childPlaceholder}</p>
-        </Card>
-
-        {/* Referrals Placeholder */}
-        <Card className="p-3.5 border-slate-200 space-y-1.5">
-          <div className="flex items-center justify-between text-slate-800">
-            <div className="flex items-center gap-2 font-bold text-sm">
+        {/* Section 3: Referrals */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-2 font-bold text-sm text-slate-800">
               <ArrowUpRight className="w-4 h-4 text-purple-600" />
               <span>{t.referralsSection}</span>
             </div>
-            <span className="text-[11px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
-              Phase 4
-            </span>
+            <button
+              type="button"
+              onClick={() => onReferPatient?.(patient)}
+              className="text-xs font-bold text-purple-700 hover:text-purple-900"
+            >
+              + Refer
+            </button>
           </div>
-          <p className="text-xs text-slate-500">{t.referralsPlaceholder}</p>
-        </Card>
+          <ReferralsSection patientId={patient.id} />
+        </div>
 
-        {/* Medicine Kit Placeholder */}
-        <Card className="p-3.5 border-slate-200 space-y-1.5">
-          <div className="flex items-center justify-between text-slate-800">
-            <div className="flex items-center gap-2 font-bold text-sm">
-              <Pill className="w-4 h-4 text-emerald-600" />
-              <span>{t.medicineSection}</span>
+        {/* Upcoming Phase 4 Workflows */}
+        <div className="pt-2 border-t border-slate-200 space-y-3">
+          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider px-1">
+            Upcoming Modules (Phase 4)
+          </h3>
+
+          {/* Maternal / Pregnancy Placeholder (If Female) */}
+          {patient.gender === 'female' && (
+            <Card className="p-3.5 border-slate-200 space-y-1.5 opacity-80">
+              <div className="flex items-center justify-between text-slate-800">
+                <div className="flex items-center gap-2 font-bold text-sm">
+                  <Heart className="w-4 h-4 text-pink-600" />
+                  <span>{t.maternalSection}</span>
+                </div>
+                <span className="text-[11px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
+                  Phase 4
+                </span>
+              </div>
+              <p className="text-xs text-slate-500">{t.maternalPlaceholder}</p>
+            </Card>
+          )}
+
+          {/* Child Immunization Placeholder */}
+          <Card className="p-3.5 border-slate-200 space-y-1.5 opacity-80">
+            <div className="flex items-center justify-between text-slate-800">
+              <div className="flex items-center gap-2 font-bold text-sm">
+                <Baby className="w-4 h-4 text-sky-600" />
+                <span>{t.childSection}</span>
+              </div>
+              <span className="text-[11px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
+                Phase 4
+              </span>
             </div>
-            <span className="text-[11px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
-              Phase 4
-            </span>
-          </div>
-          <p className="text-xs text-slate-500">{t.medicinePlaceholder}</p>
-        </Card>
+            <p className="text-xs text-slate-500">{t.childPlaceholder}</p>
+          </Card>
+
+          {/* Medicine Kit Placeholder */}
+          <Card className="p-3.5 border-slate-200 space-y-1.5 opacity-80">
+            <div className="flex items-center justify-between text-slate-800">
+              <div className="flex items-center gap-2 font-bold text-sm">
+                <Pill className="w-4 h-4 text-emerald-600" />
+                <span>{t.medicineSection}</span>
+              </div>
+              <span className="text-[11px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
+                Phase 4
+              </span>
+            </div>
+            <p className="text-xs text-slate-500">{t.medicinePlaceholder}</p>
+          </Card>
+        </div>
       </div>
     </div>
   );

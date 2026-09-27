@@ -102,7 +102,7 @@ export const AddPatientView: React.FC<AddPatientViewProps> = ({
         date_of_birth: dateOfBirth || null,
         gender,
         phone: phone || null,
-        relationshipToHead: relationshipToHead || null,
+        relationship_to_head: relationshipToHead || null,
         status,
         assigned_asha_id: user.id,
       });

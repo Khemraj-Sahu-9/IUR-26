@@ -58,13 +58,30 @@ export interface Visit {
   patient_id: string;
   asha_id: string;
   visit_date: string;
-  visit_type: 'routine_anc' | 'pnc' | 'immunization' | 'general_checkup' | 'communicable_disease';
+  visit_type: 'routine_anc' | 'pnc' | 'immunization' | 'general_checkup' | 'communicable_disease' | 'maternal_checkup' | 'child_growth';
   notes: string | null;
   follow_up_required: boolean;
   next_follow_up_date: string | null;
   created_at: string;
   updated_at: string;
 }
+
+export type PregnancyStatus = 'active' | 'completed' | 'cancelled' | 'unknown';
+
+export interface Pregnancy {
+  id: string;
+  patient_id: string;
+  status: PregnancyStatus;
+  lmp_date: string | null;
+  expected_due_date: string | null;
+  registration_date: string;
+  gravida: number | null;
+  para: number | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 
 export interface FollowUp {
   id: string;

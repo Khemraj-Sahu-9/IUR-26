@@ -126,6 +126,8 @@ export const AddVisitView: React.FC<AddVisitViewProps> = ({
               <option value="immunization">Immunization (टीकाकरण)</option>
               <option value="general_checkup">General Checkup (सामान्य जांच)</option>
               <option value="communicable_disease">Communicable Disease (संचारी रोग)</option>
+              <option value="maternal_checkup">Maternal Checkup (मातृ जांच)</option>
+              <option value="child_growth">Child Growth Monitoring (बाल विकास निगरानी)</option>
             </select>
           </div>
 

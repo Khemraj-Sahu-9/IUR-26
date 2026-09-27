@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLanguage } from '@/hooks/useLanguage';
 import { dataService } from '@/services/dataService';
-import { Patient, Household } from '@/types/database';
+import { Patient, Household, FollowUp, Referral, Pregnancy } from '@/types/database';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Card } from '@/components/common/Card';
 import { Badge } from '@/components/common/Badge';
@@ -9,6 +9,9 @@ import { Button } from '@/components/common/Button';
 import { VisitHistorySection } from '@/features/visits/VisitHistorySection';
 import { FollowUpsSection } from '@/features/followups/FollowUpsSection';
 import { ReferralsSection } from '@/features/referrals/ReferralsSection';
+import { MaternalSection } from '@/features/maternal/MaternalSection';
+import { ChildTrackingSection } from '@/features/maternal/ChildTrackingSection';
+import { isChildPatient } from '@/utils/maternalChildUtils';
 import { 
   User, 
   Calendar, 
@@ -18,7 +21,6 @@ import {
   FileText, 
   Baby, 
   Heart, 
-  Pill, 
   ArrowUpRight,
   Edit3,
   Plus
@@ -44,12 +46,32 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
   const { t } = useLanguage();
   const [patient] = useState<Patient>(initialPatient);
   const [household, setHousehold] = useState<Household | null>(null);
+  const [activePregnancy, setActivePregnancy] = useState<Pregnancy | null>(null);
+  const [pendingFollowups, setPendingFollowups] = useState<FollowUp[]>([]);
+  const [pendingReferrals, setPendingReferrals] = useState<Referral[]>([]);
+
+  const isChild = isChildPatient(patient.date_of_birth);
+  const isFemale = patient.gender === 'female';
 
   useEffect(() => {
     dataService.getHouseholdById(patient.household_id).then((hh) => {
       setHousehold(hh);
     });
-  }, [patient.household_id]);
+
+    if (isFemale) {
+      dataService.getActivePregnancyByPatient(patient.id).then((preg) => {
+        setActivePregnancy(preg);
+      });
+    }
+
+    dataService.getFollowUpsByPatient(patient.id).then((fu) => {
+      setPendingFollowups(fu.filter((f) => f.status === 'pending'));
+    });
+
+    dataService.getReferralsByPatient(patient.id).then((refs) => {
+      setPendingReferrals(refs.filter((r) => r.status === 'referred'));
+    });
+  }, [patient.household_id, patient.id, isFemale]);
 
   const calculateAge = (dob: string | null): string => {
     if (!dob) return 'Age unknown';
@@ -110,6 +132,34 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
           </Badge>
         </div>
 
+        {/* Phase 5 Badges: Pregnant, Child, Active Follow-up, Referral Pending */}
+        <div className="flex flex-wrap gap-1.5 pt-1">
+          {activePregnancy && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-pink-500 text-white shadow-2xs">
+              <Heart className="w-3 h-3 fill-current" />
+              <span>{t.badgePregnant}</span>
+            </span>
+          )}
+          {isChild && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-sky-500 text-white shadow-2xs">
+              <Baby className="w-3 h-3" />
+              <span>{t.badgeChild}</span>
+            </span>
+          )}
+          {pendingFollowups.length > 0 && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500 text-white shadow-2xs">
+              <Clock className="w-3 h-3" />
+              <span>Active Follow-up ({pendingFollowups.length})</span>
+            </span>
+          )}
+          {pendingReferrals.length > 0 && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-500 text-white shadow-2xs">
+              <ArrowUpRight className="w-3 h-3" />
+              <span>Referral Pending</span>
+            </span>
+          )}
+        </div>
+
         {/* Quick Details Chips */}
         <div className="pt-2 border-t border-blue-600/60 grid grid-cols-2 gap-2 text-xs text-blue-100">
           <div className="flex items-center gap-1.5">
@@ -123,7 +173,7 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
         </div>
       </Card>
 
-      {/* Primary Field Actions (Phase 3 Core Workflows) */}
+      {/* Primary Field Actions */}
       <div className="grid grid-cols-2 gap-2.5">
         <Button
           type="button"
@@ -175,7 +225,24 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
         </Card>
       )}
 
-      {/* Live Phase 3 Clinical Sections */}
+      {/* Phase 5 Structured Maternal & Child Tracking Sections */}
+      {isFemale && (
+        <MaternalSection
+          patient={patient}
+          onRecordMaternalVisit={() => onRecordVisit?.(patient)}
+          onScheduleFollowup={() => onRecordVisit?.(patient)}
+        />
+      )}
+
+      {isChild && (
+        <ChildTrackingSection
+          patient={patient}
+          onRecordChildVisit={() => onRecordVisit?.(patient)}
+          onScheduleChildFollowup={() => onRecordVisit?.(patient)}
+        />
+      )}
+
+      {/* Clinical Sections */}
       <div className="space-y-4">
         {/* Section 1: Home Visits History */}
         <div className="space-y-2">
@@ -187,7 +254,7 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
             <button
               type="button"
               onClick={() => onRecordVisit?.(patient)}
-              className="text-xs font-bold text-emerald-700 hover:text-emerald-900"
+              className="text-xs font-bold text-emerald-700 hover:text-emerald-900 cursor-pointer"
             >
               + Record
             </button>
@@ -216,65 +283,15 @@ export const PatientProfileView: React.FC<PatientProfileViewProps> = ({
             <button
               type="button"
               onClick={() => onReferPatient?.(patient)}
-              className="text-xs font-bold text-purple-700 hover:text-purple-900"
+              className="text-xs font-bold text-purple-700 hover:text-purple-900 cursor-pointer"
             >
               + Refer
             </button>
           </div>
           <ReferralsSection patientId={patient.id} />
         </div>
-
-        {/* Upcoming Phase 4 Workflows */}
-        <div className="pt-2 border-t border-slate-200 space-y-3">
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider px-1">
-            Upcoming Modules (Phase 4)
-          </h3>
-
-          {/* Maternal / Pregnancy Placeholder (If Female) */}
-          {patient.gender === 'female' && (
-            <Card className="p-3.5 border-slate-200 space-y-1.5 opacity-80">
-              <div className="flex items-center justify-between text-slate-800">
-                <div className="flex items-center gap-2 font-bold text-sm">
-                  <Heart className="w-4 h-4 text-pink-600" />
-                  <span>{t.maternalSection}</span>
-                </div>
-                <span className="text-[11px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
-                  Phase 4
-                </span>
-              </div>
-              <p className="text-xs text-slate-500">{t.maternalPlaceholder}</p>
-            </Card>
-          )}
-
-          {/* Child Immunization Placeholder */}
-          <Card className="p-3.5 border-slate-200 space-y-1.5 opacity-80">
-            <div className="flex items-center justify-between text-slate-800">
-              <div className="flex items-center gap-2 font-bold text-sm">
-                <Baby className="w-4 h-4 text-sky-600" />
-                <span>{t.childSection}</span>
-              </div>
-              <span className="text-[11px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
-                Phase 4
-              </span>
-            </div>
-            <p className="text-xs text-slate-500">{t.childPlaceholder}</p>
-          </Card>
-
-          {/* Medicine Kit Placeholder */}
-          <Card className="p-3.5 border-slate-200 space-y-1.5 opacity-80">
-            <div className="flex items-center justify-between text-slate-800">
-              <div className="flex items-center gap-2 font-bold text-sm">
-                <Pill className="w-4 h-4 text-emerald-600" />
-                <span>{t.medicineSection}</span>
-              </div>
-              <span className="text-[11px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
-                Phase 4
-              </span>
-            </div>
-            <p className="text-xs text-slate-500">{t.medicinePlaceholder}</p>
-          </Card>
-        </div>
       </div>
     </div>
   );
 };
+

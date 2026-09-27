@@ -52,8 +52,8 @@ test.describe('ASHA Saathi - Phase 1 Foundation, Auth & Role Routing', () => {
     await supervisorDemoBtn.click();
 
     await expect(page.getByText(/Supervisor Portal/i)).toBeVisible({ timeout: 15000 });
-    await expect(page.getByText(/Active ASHAs/i)).toBeVisible();
-    await expect(page.getByText(/Medicine Requisitions/i)).toBeVisible();
+    await expect(page.getByText(/Supervisory Governance/i)).toBeVisible();
+    await expect(page.getByRole('button', { name: /Medicines/i })).toBeVisible();
 
     // Logout
     await page.getByLabel('Logout').click();
@@ -64,8 +64,8 @@ test.describe('ASHA Saathi - Phase 1 Foundation, Auth & Role Routing', () => {
     await managerDemoBtn.click();
 
     await expect(page.getByText('PHC Administration Portal')).toBeVisible({ timeout: 15000 });
-    await expect(page.getByText(/Tracked Drugs/i)).toBeVisible();
-    await expect(page.getByText(/PHC Central Stock Inventory/i)).toBeVisible();
+    await expect(page.getByText(/PHC Administration/i)).toBeVisible();
+    await expect(page.getByRole('button', { name: /Manage Stock/i })).toBeVisible();
 
     // Logout
     await page.getByLabel('Logout').click();

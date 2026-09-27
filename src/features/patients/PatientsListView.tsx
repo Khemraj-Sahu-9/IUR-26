@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useLanguage } from '@/hooks/useLanguage';
 import { dataService } from '@/services/dataService';
-import { Patient, Household } from '@/types/database';
+import { Patient, Household, Pregnancy, FollowUp } from '@/types/database';
+import { isChildPatient } from '@/utils/maternalChildUtils';
 import { PageHeader } from '@/components/common/PageHeader';
 import { SearchBar } from '@/components/common/SearchBar';
 import { PatientCard } from '@/components/patients/PatientCard';
@@ -16,6 +17,8 @@ interface PatientsListViewProps {
   onAddPatient: () => void;
 }
 
+type CategoryFilter = 'all' | 'pregnant' | 'children' | 'overdue' | 'female' | 'male';
+
 export const PatientsListView: React.FC<PatientsListViewProps> = ({
   onSelectPatient,
   onAddPatient,
@@ -23,8 +26,10 @@ export const PatientsListView: React.FC<PatientsListViewProps> = ({
   const { t } = useLanguage();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [households, setHouseholds] = useState<Household[]>([]);
+  const [pregnancies, setPregnancies] = useState<Pregnancy[]>([]);
+  const [followups, setFollowups] = useState<FollowUp[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [genderFilter, setGenderFilter] = useState<'all' | 'female' | 'male'>('all');
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,12 +37,16 @@ export const PatientsListView: React.FC<PatientsListViewProps> = ({
     try {
       setLoading(true);
       setError(null);
-      const [ptData, hhData] = await Promise.all([
+      const [ptData, hhData, pregData, fuData] = await Promise.all([
         dataService.getPatients(),
         dataService.getHouseholds(),
+        dataService.getAllActivePregnancies(),
+        dataService.getFollowUps(),
       ]);
       setPatients(ptData);
       setHouseholds(hhData);
+      setPregnancies(pregData);
+      setFollowups(fuData);
     } catch (err: unknown) {
       console.error('Failed to load patients:', err);
       setError(err instanceof Error ? err.message : 'Database error loading patients');
@@ -58,12 +67,41 @@ export const PatientsListView: React.FC<PatientsListViewProps> = ({
     return map;
   }, [households]);
 
-  // Fast field search with debounced state
+  const pregnantPatientIds = useMemo(() => {
+    return new Set(pregnancies.filter((p) => p.status === 'active').map((p) => p.patient_id));
+  }, [pregnancies]);
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const overduePatientIds = useMemo(() => {
+    return new Set(
+      followups
+        .filter((f) => f.status === 'pending' && f.due_date < todayStr)
+        .map((f) => f.patient_id)
+    );
+  }, [followups, todayStr]);
+
+  const activeFollowupPatientIds = useMemo(() => {
+    return new Set(
+      followups
+        .filter((f) => f.status === 'pending')
+        .map((f) => f.patient_id)
+    );
+  }, [followups]);
+
+  // Fast field search and Phase 5 filter categories
   const filteredPatients = useMemo(() => {
     let result = patients;
 
-    if (genderFilter !== 'all') {
-      result = result.filter((p) => p.gender === genderFilter);
+    if (categoryFilter === 'pregnant') {
+      result = result.filter((p) => pregnantPatientIds.has(p.id));
+    } else if (categoryFilter === 'children') {
+      result = result.filter((p) => isChildPatient(p.date_of_birth));
+    } else if (categoryFilter === 'overdue') {
+      result = result.filter((p) => overduePatientIds.has(p.id));
+    } else if (categoryFilter === 'female') {
+      result = result.filter((p) => p.gender === 'female');
+    } else if (categoryFilter === 'male') {
+      result = result.filter((p) => p.gender === 'male');
     }
 
     if (searchQuery.trim()) {
@@ -79,7 +117,7 @@ export const PatientsListView: React.FC<PatientsListViewProps> = ({
     }
 
     return result;
-  }, [patients, searchQuery, genderFilter, householdCodeMap]);
+  }, [patients, searchQuery, categoryFilter, householdCodeMap, pregnantPatientIds, overduePatientIds]);
 
   return (
     <div className="space-y-4">
@@ -111,9 +149,9 @@ export const PatientsListView: React.FC<PatientsListViewProps> = ({
         <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
           <button
             type="button"
-            onClick={() => setGenderFilter('all')}
-            className={`min-h-[36px] px-3 py-1 rounded-full font-semibold border transition-all ${
-              genderFilter === 'all'
+            onClick={() => setCategoryFilter('all')}
+            className={`min-h-[36px] px-3 py-1 rounded-full font-semibold border transition-all whitespace-nowrap ${
+              categoryFilter === 'all'
                 ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
                 : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
             }`}
@@ -122,20 +160,53 @@ export const PatientsListView: React.FC<PatientsListViewProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => setGenderFilter('female')}
-            className={`min-h-[36px] px-3 py-1 rounded-full font-semibold border transition-all ${
-              genderFilter === 'female'
+            onClick={() => setCategoryFilter('pregnant')}
+            className={`min-h-[36px] px-3 py-1 rounded-full font-semibold border transition-all whitespace-nowrap ${
+              categoryFilter === 'pregnant'
+                ? 'bg-pink-600 text-white border-pink-600 shadow-2xs'
+                : 'bg-white text-pink-600 border-pink-200 hover:bg-pink-50'
+            }`}
+          >
+            🤰 {t.filterPregnant ?? 'Pregnant'} ({pregnantPatientIds.size})
+          </button>
+          <button
+            type="button"
+            onClick={() => setCategoryFilter('children')}
+            className={`min-h-[36px] px-3 py-1 rounded-full font-semibold border transition-all whitespace-nowrap ${
+              categoryFilter === 'children'
+                ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                : 'bg-white text-indigo-600 border-indigo-200 hover:bg-indigo-50'
+            }`}
+          >
+            👶 {t.filterChildren ?? 'Children'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setCategoryFilter('overdue')}
+            className={`min-h-[36px] px-3 py-1 rounded-full font-semibold border transition-all whitespace-nowrap ${
+              categoryFilter === 'overdue'
+                ? 'bg-red-600 text-white border-red-600 shadow-2xs'
+                : 'bg-white text-red-600 border-red-200 hover:bg-red-50'
+            }`}
+          >
+            ⏰ {t.filterOverdue ?? 'Overdue'} ({overduePatientIds.size})
+          </button>
+          <button
+            type="button"
+            onClick={() => setCategoryFilter('female')}
+            className={`min-h-[36px] px-3 py-1 rounded-full font-semibold border transition-all whitespace-nowrap ${
+              categoryFilter === 'female'
                 ? 'bg-blue-700 text-white border-blue-700 shadow-2xs'
                 : 'bg-white text-blue-700 border-blue-200 hover:bg-blue-50'
             }`}
           >
-            {t.genderFemale} (ANC/Mothers)
+            {t.genderFemale}
           </button>
           <button
             type="button"
-            onClick={() => setGenderFilter('male')}
-            className={`min-h-[36px] px-3 py-1 rounded-full font-semibold border transition-all ${
-              genderFilter === 'male'
+            onClick={() => setCategoryFilter('male')}
+            className={`min-h-[36px] px-3 py-1 rounded-full font-semibold border transition-all whitespace-nowrap ${
+              categoryFilter === 'male'
                 ? 'bg-slate-700 text-white border-slate-700 shadow-2xs'
                 : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
             }`}
@@ -157,7 +228,7 @@ export const PatientsListView: React.FC<PatientsListViewProps> = ({
           retryLabel={t.retry}
         />
       ) : filteredPatients.length === 0 ? (
-        searchQuery || genderFilter !== 'all' ? (
+        searchQuery || categoryFilter !== 'all' ? (
           <EmptyState
             icon={<Users className="w-6 h-6" />}
             title={t.noPatientsFound}
@@ -182,6 +253,8 @@ export const PatientsListView: React.FC<PatientsListViewProps> = ({
               patient={patient}
               householdCode={householdCodeMap[patient.household_id]}
               onClick={() => onSelectPatient(patient)}
+              isPregnant={pregnantPatientIds.has(patient.id)}
+              hasActiveFollowup={activeFollowupPatientIds.has(patient.id)}
             />
           ))}
         </div>

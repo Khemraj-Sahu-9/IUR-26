@@ -8,12 +8,17 @@ interface PatientCardProps {
   patient: Patient;
   onClick: () => void;
   householdCode?: string;
+  isPregnant?: boolean;
+  hasActiveFollowup?: boolean;
 }
+
 
 export const PatientCard: React.FC<PatientCardProps> = ({
   patient,
   onClick,
   householdCode,
+  isPregnant,
+  hasActiveFollowup,
 }) => {
   const calculateAge = (dob: string | null): string => {
     if (!dob) return '';
@@ -28,6 +33,13 @@ export const PatientCard: React.FC<PatientCardProps> = ({
   };
 
   const age = calculateAge(patient.date_of_birth);
+  const isChild = (() => {
+    if (!patient.date_of_birth) return false;
+    const b = new Date(patient.date_of_birth);
+    const now = new Date();
+    const fiveAgo = new Date(now.getFullYear() - 5, now.getMonth(), now.getDate());
+    return b >= fiveAgo;
+  })();
 
   const genderBadgeMap = {
     female: { label: 'Female • महिला', variant: 'blue' as const },
@@ -77,6 +89,21 @@ export const PatientCard: React.FC<PatientCardProps> = ({
                   ({patient.relationship_to_head})
                 </span>
               )}
+              {isPregnant && (
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-pink-100 text-pink-800 border border-pink-200">
+                  🤰 Pregnant
+                </span>
+              )}
+              {isChild && (
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-200">
+                  👶 Child
+                </span>
+              )}
+              {hasActiveFollowup && (
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                  ⏰ Follow-up
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -88,6 +115,7 @@ export const PatientCard: React.FC<PatientCardProps> = ({
           <ChevronRight className="w-5 h-5 text-slate-400" />
         </div>
       </div>
+
 
       <div className="flex items-center justify-between text-xs text-slate-500 pt-1.5 border-t border-slate-100">
         <div className="flex items-center gap-2">

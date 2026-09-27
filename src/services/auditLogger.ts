@@ -18,8 +18,16 @@ export interface AuditLogPayload {
     | 'STOCK_RECEIVED'
     | 'STOCK_ADJUSTED'
     | 'STOCK_ISSUED'
+    | 'PREGNANCY_RECORD_CREATED'
+    | 'PREGNANCY_RECORD_UPDATED'
+    | 'PREGNANCY_STATUS_CHANGED'
+    | 'MATERNAL_VISIT_CREATED'
+    | 'CHILD_RECORD_UPDATED'
+    | 'CHILD_FOLLOW_UP_CREATED'
+    | 'CHILD_FOLLOW_UP_COMPLETED'
     | 'USER_LOGIN' 
     | 'USER_LOGOUT';
+
   tableName: string;
   recordId: string;
   metadata?: Record<string, unknown>;

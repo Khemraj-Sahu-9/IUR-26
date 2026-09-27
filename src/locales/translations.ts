@@ -100,6 +100,31 @@ export const translations = {
     medicineSection: 'Prescribed Drugs',
     medicinePlaceholder: 'Dispensed kit medicines and dosages will appear here.',
 
+    // Phase 5: Maternal & Child Tracking
+    startPregnancy: 'Start Pregnancy Record',
+    recordMaternalVisit: 'Record Maternal Visit',
+    scheduleFollowup: 'Schedule Follow-up',
+    pregnancyStatus: 'Pregnancy Status',
+    lmpDate: 'LMP Date (Last Menstrual Period)',
+    expectedDueDate: 'Expected Due Date (EDD)',
+    gestationalAge: 'Gestational Age',
+    gravida: 'Gravida (Total Pregnancies)',
+    para: 'Para (Live Births)',
+    completePregnancy: 'Mark Pregnancy Completed',
+    activePregnancy: 'Active Pregnancy',
+    noActivePregnancy: 'No active pregnancy record',
+    startPregnancyPrompt: 'Register this pregnancy to track ANC checkups and delivery milestones.',
+    pregnancyHistory: 'Pregnancy History',
+    childTracking: 'Child Tracking',
+    childAge: 'Child Age',
+    recordChildVisit: 'Record Child Visit',
+    childGrowthNote: 'Growth & Nutrition Check',
+    filterPregnant: 'Pregnant',
+    filterChildren: 'Children (<5y)',
+    filterOverdue: 'Overdue Follow-up',
+    badgePregnant: 'Pregnant',
+    badgeChild: 'Child',
+
     // Common UI
     save: 'Save',
     cancel: 'Cancel',
@@ -113,6 +138,7 @@ export const translations = {
     required: 'Required',
     all: 'All',
   },
+
   hi: {
     // Brand & Roles
     appName: 'आशा साथी',
@@ -212,6 +238,31 @@ export const translations = {
     medicineSection: 'दी गई दवाएं (Medicines)',
     medicinePlaceholder: 'आशा किट से दी गई दवाएं और खुराक यहां दिखेंगी।',
 
+    // Phase 5: Maternal & Child Tracking
+    startPregnancy: 'गर्भावस्था पंजीकरण शुरू करें',
+    recordMaternalVisit: 'मातृ भ्रमण दर्ज करें (ANC/PNC)',
+    scheduleFollowup: 'फॉलो-अप शेड्यूल करें',
+    pregnancyStatus: 'गर्भावस्था स्थिति',
+    lmpDate: 'अंतिम माहवारी तिथि (LMP)',
+    expectedDueDate: 'संभावित प्रसव तिथि (EDD)',
+    gestationalAge: 'गर्भ अवधि (सप्ताह व दिन)',
+    gravida: 'गर्भधारण संख्या (Gravida)',
+    para: 'जीवित जन्म संख्या (Para)',
+    completePregnancy: 'गर्भावस्था पूर्ण चिह्नित करें',
+    activePregnancy: 'सक्रिय गर्भावस्था',
+    noActivePregnancy: 'कोई सक्रिय गर्भावस्था पंजीकृत नहीं है',
+    startPregnancyPrompt: 'एएनसी जांच और प्रसव तिथियों की निगरानी के लिए गर्भावस्था दर्ज करें।',
+    pregnancyHistory: 'पिछली गर्भावस्थाओं का इतिहास',
+    childTracking: 'शिशु स्वास्थ्य निगरानी (Child Tracking)',
+    childAge: 'शिशु की उम्र',
+    recordChildVisit: 'शिशु स्वास्थ्य भ्रमण दर्ज करें',
+    childGrowthNote: 'शिशु वृद्धि व पोषण जांच',
+    filterPregnant: 'गर्भवती महिलाएं',
+    filterChildren: 'शिशु (<5 वर्ष)',
+    filterOverdue: 'अतिदेय फॉलो-अप (Overdue)',
+    badgePregnant: 'गर्भवती',
+    badgeChild: 'शिशु',
+
     // Common UI
     save: 'सहेजें',
     cancel: 'रद्द करें',
@@ -226,3 +277,4 @@ export const translations = {
     all: 'सभी',
   },
 };
+

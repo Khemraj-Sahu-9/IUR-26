@@ -10,8 +10,11 @@ import {
   MedicineStock, 
   MedicineOrder, 
   Notification,
-  AshaWorker
+  AshaWorker,
+  Pregnancy,
+  PregnancyStatus
 } from '@/types/database';
+
 
 export interface CreateHouseholdInput {
   household_code: string;
@@ -551,5 +554,206 @@ export const dataService = {
 
     return data as MedicineStock;
   },
+
+  // ─── Phase 5: Maternal / Pregnancy Tracking ───────────────────
+
+  // Helper for offline / local-fallback pregnancy store
+  _getLocalPregnancies(): Pregnancy[] {
+    try {
+      const stored = localStorage.getItem('asha_local_pregnancies');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  },
+
+  _saveLocalPregnancies(items: Pregnancy[]): void {
+    try {
+      localStorage.setItem('asha_local_pregnancies', JSON.stringify(items));
+    } catch (err) {
+      console.warn('Could not write local pregnancies', err);
+    }
+  },
+
+  // Get all pregnancy records for a patient (history preserved)
+  async getPregnanciesByPatient(patientId: string): Promise<Pregnancy[]> {
+    try {
+      const { data, error } = await supabase
+        .from('pregnancies')
+        .select('*')
+        .eq('patient_id', patientId)
+        .order('created_at', { ascending: false });
+      
+      if (!error && data) {
+        // Merge or cache to local store
+        return data as Pregnancy[];
+      }
+    } catch {
+      // Table may not exist yet in live remote DB or offline, use local storage fallback
+    }
+
+    const localItems = this._getLocalPregnancies().filter(p => p.patient_id === patientId);
+    return localItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  },
+
+  // Get current active pregnancy for a patient
+  async getActivePregnancyByPatient(patientId: string): Promise<Pregnancy | null> {
+    const records = await this.getPregnanciesByPatient(patientId);
+    return records.find(p => p.status === 'active') || null;
+  },
+
+  // Get all active pregnancies (for dashboard & filters)
+  async getAllActivePregnancies(): Promise<Pregnancy[]> {
+    try {
+      const { data, error } = await supabase
+        .from('pregnancies')
+        .select('*')
+        .eq('status', 'active');
+      
+      if (!error && data) {
+        return data as Pregnancy[];
+      }
+    } catch {
+      // Fallback
+    }
+
+    return this._getLocalPregnancies().filter(p => p.status === 'active');
+  },
+
+  // Start / Create a new pregnancy record
+  async createPregnancy(input: {
+    patient_id: string;
+    lmp_date?: string | null;
+    expected_due_date?: string | null;
+    registration_date?: string;
+    gravida?: number;
+    para?: number;
+    notes?: string | null;
+  }): Promise<Pregnancy> {
+    const payload = {
+      id: crypto.randomUUID ? crypto.randomUUID() : 'preg-' + Date.now(),
+      patient_id: input.patient_id,
+      status: 'active' as PregnancyStatus,
+      lmp_date: input.lmp_date || null,
+      expected_due_date: input.expected_due_date || null,
+      registration_date: input.registration_date || new Date().toISOString().split('T')[0],
+      gravida: input.gravida ?? 1,
+      para: input.para ?? 0,
+      notes: input.notes?.trim() || null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    let resultRecord: Pregnancy = payload;
+
+    try {
+      const { data, error } = await supabase
+        .from('pregnancies')
+        .insert(payload)
+        .select()
+        .single();
+      
+      if (!error && data) {
+        resultRecord = data as Pregnancy;
+      } else {
+        // Fallback save locally
+        const list = this._getLocalPregnancies();
+        list.push(payload);
+        this._saveLocalPregnancies(list);
+      }
+    } catch {
+      const list = this._getLocalPregnancies();
+      list.push(payload);
+      this._saveLocalPregnancies(list);
+    }
+
+    await auditLogger.log({
+      action: 'PREGNANCY_RECORD_CREATED',
+      tableName: 'pregnancies',
+      recordId: resultRecord.id,
+      metadata: { patient_id: input.patient_id, edd: input.expected_due_date },
+    });
+
+    return resultRecord;
+  },
+
+  // Update pregnancy record (e.g. mark completed, cancelled, update dates/notes)
+  async updatePregnancy(
+    id: string,
+    updates: {
+      status?: PregnancyStatus;
+      lmp_date?: string | null;
+      expected_due_date?: string | null;
+      notes?: string | null;
+      gravida?: number;
+      para?: number;
+    }
+  ): Promise<Pregnancy> {
+    const payload: Record<string, unknown> = {
+      ...updates,
+      updated_at: new Date().toISOString(),
+    };
+
+    let updatedRecord: Pregnancy | null = null;
+
+    try {
+      const { data, error } = await supabase
+        .from('pregnancies')
+        .update(payload)
+        .eq('id', id)
+        .select()
+        .single();
+      
+      if (!error && data) {
+        updatedRecord = data as Pregnancy;
+      }
+    } catch {
+      // Fallback
+    }
+
+    // Always keep local fallback synced
+    const list = this._getLocalPregnancies();
+    const index = list.findIndex(p => p.id === id);
+    if (index !== -1) {
+      list[index] = { ...list[index], ...payload } as Pregnancy;
+      this._saveLocalPregnancies(list);
+      if (!updatedRecord) updatedRecord = list[index];
+    }
+
+    if (!updatedRecord) {
+      updatedRecord = {
+        id,
+        patient_id: '',
+        status: updates.status || 'active',
+        lmp_date: updates.lmp_date || null,
+        expected_due_date: updates.expected_due_date || null,
+        registration_date: new Date().toISOString().split('T')[0],
+        gravida: updates.gravida || 1,
+        para: updates.para || 0,
+        notes: updates.notes || null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+    }
+
+    if (updates.status) {
+      await auditLogger.log({
+        action: 'PREGNANCY_STATUS_CHANGED',
+        tableName: 'pregnancies',
+        recordId: id,
+        metadata: { new_status: updates.status },
+      });
+    } else {
+      await auditLogger.log({
+        action: 'PREGNANCY_RECORD_UPDATED',
+        tableName: 'pregnancies',
+        recordId: id,
+        metadata: updates,
+      });
+    }
+
+    return updatedRecord;
+  },
 };
+
 

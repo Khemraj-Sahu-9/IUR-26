@@ -68,13 +68,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     // 2. Auth state change listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
       if (currentUser) {
         await fetchProfile(currentUser.id);
       } else {
         setProfile(null);
+        if (event === 'SIGNED_OUT') {
+          await clearLocalDatabase();
+        }
       }
       setLoading(false);
     });
@@ -132,9 +135,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         recordId: user.id,
       });
     }
-    await authService.signOut();
     // Clear all locally cached data — security: another user must not see previous user's records
     await clearLocalDatabase();
+    await authService.signOut();
     setUser(null);
     setProfile(null);
   };

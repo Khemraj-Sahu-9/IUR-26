@@ -55,6 +55,7 @@ export const PatientCard: React.FC<PatientCardProps> = ({
 
   return (
     <Card
+      data-testid="patient-card"
       onClick={onClick}
       role="button"
       tabIndex={0}

@@ -88,22 +88,22 @@ test.describe('Phase 5 — Offline-First PWA & Reliable Data Synchronization', (
 
     // Navigate to Drug Kit / Medicine Requests
     await page.getByRole('button', { name: /Drug Kit/i }).first().click();
-    await expect(page.getByText(/Drug Kit & Medicine Requisitions/i)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/My Drug Kit/i)).toBeVisible({ timeout: 10000 });
 
-    // Check if Request Refill button exists
-    const refillBtn = page.getByRole('button', { name: /Request Refill/i });
+    // Check if New Medicine Request button exists
+    const refillBtn = page.getByRole('button', { name: /New Medicine Request/i });
     if (await refillBtn.count() > 0) {
       await refillBtn.click();
-      await expect(page.getByText(/New Medicine Requisition/i)).toBeVisible({ timeout: 5000 });
+      await expect(page.getByText(/New Drug Kit Request/i)).toBeVisible({ timeout: 5000 });
 
       // Enter quantity
       const qtyInput = page.getByLabel(/Quantity/i);
       if (await qtyInput.count() > 0) {
         await qtyInput.fill('20');
-        await page.getByRole('button', { name: /Submit Requisition/i }).click();
+        await page.getByRole('button', { name: /Submit Request/i }).click();
 
         // Check for success feedback
-        await expect(page.getByText(/Requisition Submitted Successfully|Drug Kit/i)).toBeVisible({ timeout: 8000 });
+        await expect(page.getByText(/Request Submitted|My Drug Kit/i)).toBeVisible({ timeout: 8000 });
       }
     }
 
@@ -120,25 +120,25 @@ test.describe('Phase 5 — Offline-First PWA & Reliable Data Synchronization', (
     // Verify redirected to Login Screen
     await expect(page.getByRole('heading', { name: /ASHA Saathi/i })).toBeVisible({ timeout: 10000 });
 
-    // Verify in IndexedDB that profiles store is cleared
-    const profilesCount = await page.evaluate(async () => {
-      return new Promise<number>((resolve) => {
-        const req = indexedDB.open('AshaSaathiDB');
-        req.onsuccess = () => {
-          const idb = req.result;
-          if (!idb.objectStoreNames.contains('profiles')) {
-            resolve(0);
-            return;
-          }
-          const tx = idb.transaction('profiles', 'readonly');
-          const countReq = tx.objectStore('profiles').count();
-          countReq.onsuccess = () => resolve(countReq.result);
-          countReq.onerror = () => resolve(-1);
-        };
-        req.onerror = () => resolve(-1);
+    // Verify in IndexedDB that profiles store is cleared (poll to wait for async clear transaction)
+    await expect.poll(async () => {
+      return await page.evaluate(async () => {
+        return new Promise<number>((resolve) => {
+          const req = indexedDB.open('AshaSaathiDB');
+          req.onsuccess = () => {
+            const idb = req.result;
+            if (!idb.objectStoreNames.contains('profiles')) {
+              resolve(0);
+              return;
+            }
+            const tx = idb.transaction('profiles', 'readonly');
+            const countReq = tx.objectStore('profiles').count();
+            countReq.onsuccess = () => resolve(countReq.result);
+            countReq.onerror = () => resolve(-1);
+          };
+          req.onerror = () => resolve(-1);
+        });
       });
-    });
-
-    expect(profilesCount).toBe(0);
+    }, { timeout: 10000, intervals: [200, 500, 1000] }).toBe(0);
   });
 });

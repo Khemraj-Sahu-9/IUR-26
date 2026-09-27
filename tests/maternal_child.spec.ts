@@ -10,7 +10,7 @@ test.describe('Phase 5 — Maternal & Child Tracking', () => {
 
   test('patients list view renders category filter chips', async ({ page }) => {
     // Navigate to Patients section
-    await page.getByRole('button', { name: /Patients/i }).click();
+    await page.getByRole('button', { name: 'Patients', exact: true }).click();
     await expect(page.getByText(/individuals in assigned ward/i)).toBeVisible({ timeout: 10000 });
 
     // All six filter chips should be visible
@@ -18,12 +18,12 @@ test.describe('Phase 5 — Maternal & Child Tracking', () => {
     await expect(page.getByRole('button', { name: /Pregnant/i })).toBeVisible();
     await expect(page.getByRole('button', { name: /Children/i })).toBeVisible();
     await expect(page.getByRole('button', { name: /Overdue/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Female/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Male/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Female', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Male', exact: true })).toBeVisible();
   });
 
   test('category filter chips are clickable and update active state', async ({ page }) => {
-    await page.getByRole('button', { name: /Patients/i }).click();
+    await page.getByRole('button', { name: 'Patients', exact: true }).click();
     await expect(page.getByText(/individuals in assigned ward/i)).toBeVisible({ timeout: 10000 });
 
     // Click Pregnant filter chip
@@ -42,7 +42,7 @@ test.describe('Phase 5 — Maternal & Child Tracking', () => {
   });
 
   test('add visit form includes maternal_checkup and child_growth options', async ({ page }) => {
-    await page.getByRole('button', { name: /Patients/i }).click();
+    await page.getByRole('button', { name: 'Patients', exact: true }).click();
     await expect(page.getByText(/individuals in assigned ward/i)).toBeVisible({ timeout: 10000 });
 
     // Open first patient if one exists
@@ -50,35 +50,33 @@ test.describe('Phase 5 — Maternal & Child Tracking', () => {
     const cardCount = await firstCard.count();
 
     if (cardCount === 0) {
-      // No patients — just verify the add visit button is accessible from visits section
-      await page.getByRole('button', { name: /Visits/i }).click();
       return;
     }
 
     await firstCard.click();
     await expect(page.getByText(/Patient Profile/i)).toBeVisible({ timeout: 8000 });
 
-    // Click Add Visit
+    // Click Record Visit
     const addVisitBtn = page.getByRole('button', { name: /Add Visit|Record Visit/i });
-    if (await addVisitBtn.count() > 0) {
-      await addVisitBtn.click();
-      // Check visit type select includes new Phase 5 types
-      const visitTypeSelect = page.locator('select').first();
-      const options = visitTypeSelect.locator('option');
-      const optionTexts = await options.allTextContents();
-      expect(optionTexts.some((t) => t.toLowerCase().includes('maternal'))).toBeTruthy();
-      expect(optionTexts.some((t) => t.toLowerCase().includes('child growth'))).toBeTruthy();
-    }
+    await expect(addVisitBtn).toBeVisible({ timeout: 5000 });
+    await addVisitBtn.click();
+
+    // Check visit type select includes maternal_checkup and child_growth options
+    const visitTypeSelect = page.locator('select').first();
+    const options = visitTypeSelect.locator('option');
+    const optionTexts = await options.allTextContents();
+    expect(optionTexts.some((t) => t.toLowerCase().includes('maternal'))).toBeTruthy();
+    expect(optionTexts.some((t) => t.toLowerCase().includes('child growth'))).toBeTruthy();
   });
 
   test('patient profile shows maternal section for female patients', async ({ page }) => {
-    await page.getByRole('button', { name: /Patients/i }).click();
+    await page.getByRole('button', { name: 'Patients', exact: true }).click();
     await expect(page.getByText(/individuals in assigned ward/i)).toBeVisible({ timeout: 10000 });
 
     // Click Female filter to narrow list
-    await page.getByRole('button', { name: /Female/i }).click();
+    await page.getByRole('button', { name: 'Female', exact: true }).click();
     const cards = page.locator('[data-testid="patient-card"]');
-    if (await cards.count() === 0) return; // no female patients in seed data
+    if ((await cards.count()) === 0) return; // no female patients in seed data
 
     await cards.first().click();
     await expect(page.getByText(/Patient Profile/i)).toBeVisible({ timeout: 8000 });

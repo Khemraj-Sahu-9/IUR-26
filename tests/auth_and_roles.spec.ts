@@ -64,7 +64,7 @@ test.describe('ASHA Saathi - Phase 1 Foundation, Auth & Role Routing', () => {
     await managerDemoBtn.click();
 
     await expect(page.getByText('PHC Administration Portal')).toBeVisible({ timeout: 15000 });
-    await expect(page.getByText(/PHC Administration/i)).toBeVisible();
+    await expect(page.getByText('PHC Administration • पीएचसी प्रबंधन')).toBeVisible();
     await expect(page.getByRole('button', { name: /Manage Stock/i })).toBeVisible();
 
     // Logout

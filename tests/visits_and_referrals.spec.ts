@@ -18,11 +18,11 @@ test.describe('ASHA Saathi - Phase 3 Home Visits, Follow-ups & Referrals', () =>
       await page.getByRole('button', { name: /Visits & Tasks/i }).first().click();
     }
 
-    await expect(page.getByText(/Field Tasks & Reminders/i)).toBeVisible();
-    await expect(page.getByRole('button', { name: /Today/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Upcoming/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Overdue/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Completed/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Tasks & Follow-ups/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Today/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Upcoming/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Overdue/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Done/i })).toBeVisible();
   });
 
   test('should open a patient profile and display Phase 3 action buttons and clinical sections', async ({ page }) => {

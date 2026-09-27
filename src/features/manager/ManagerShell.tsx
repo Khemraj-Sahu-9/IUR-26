@@ -10,13 +10,15 @@ import {
   AlertTriangle, 
   Clock, 
   PackageCheck,
-  TrendingDown
+  TrendingDown,
+  BarChart2
 } from 'lucide-react';
 import { ManagerStockView } from '@/features/medicines/ManagerStockView';
+import { ManagerReportView } from '@/features/reports/ManagerReportView';
 import { dataService } from '@/services/dataService';
 import { MedicineOrder } from '@/types/database';
 
-type ManagerTab = 'overview' | 'stock' | 'requisitions';
+type ManagerTab = 'overview' | 'stock' | 'requisitions' | 'reports';
 
 export const ManagerShell: React.FC = () => {
   const { profile } = useAuth();
@@ -124,6 +126,15 @@ export const ManagerShell: React.FC = () => {
         >
           <Layers className="w-4 h-4" />
           Manage Stock
+        </button>
+        <button
+          onClick={() => setTab('reports')}
+          className={`flex-1 min-h-[40px] rounded-xl text-sm font-bold flex items-center justify-center gap-1.5 transition-colors ${
+            tab === 'reports' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          }`}
+        >
+          <BarChart2 className="w-4 h-4" />
+          Reports
         </button>
       </div>
 
@@ -241,6 +252,11 @@ export const ManagerShell: React.FC = () => {
 
       {/* Stock Management Tab */}
       {tab === 'stock' && <ManagerStockView />}
+
+      {/* Reports Tab (Phase 8) */}
+      {tab === 'reports' && (
+        <ManagerReportView onBack={() => setTab('overview')} />
+      )}
     </div>
   );
 };

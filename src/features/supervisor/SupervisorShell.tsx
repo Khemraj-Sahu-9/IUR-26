@@ -15,11 +15,12 @@ import {
   Clock
 } from 'lucide-react';
 import { SupervisorMedicineView } from '@/features/medicines/SupervisorMedicineView';
+import { SupervisorReportView } from '@/features/reports/SupervisorReportView';
 import { dataService } from '@/services/dataService';
 import { Pregnancy, Visit, FollowUp, Referral } from '@/types/database';
 import { calculateGestationalAge } from '@/utils/maternalChildUtils';
 
-type SupervisorTab = 'overview' | 'monitoring' | 'maternal' | 'medicines';
+type SupervisorTab = 'overview' | 'monitoring' | 'maternal' | 'medicines' | 'reports';
 
 export const SupervisorShell: React.FC = () => {
   const { profile } = useAuth();
@@ -154,6 +155,15 @@ export const SupervisorShell: React.FC = () => {
         >
           <Pill className="w-3.5 h-3.5" />
           Medicines
+        </button>
+        <button
+          onClick={() => setTab('reports')}
+          className={`flex-1 min-h-[40px] px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap ${
+            tab === 'reports' ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          }`}
+        >
+          <BarChart2 className="w-3.5 h-3.5" />
+          Reports
         </button>
       </div>
 
@@ -364,6 +374,11 @@ export const SupervisorShell: React.FC = () => {
 
       {/* 4. Medicines Tab */}
       {tab === 'medicines' && <SupervisorMedicineView />}
+
+      {/* 5. Reports Tab (Phase 8) */}
+      {tab === 'reports' && (
+        <SupervisorReportView onBack={() => setTab('overview')} />
+      )}
     </div>
   );
 };

@@ -15,6 +15,7 @@ import { AshaProfileView } from '@/features/profile/AshaProfileView';
 import { MedicineRequestView } from '@/features/medicines/MedicineRequestView';
 import { TasksListView } from '@/features/tasks/TasksListView';
 import { NotificationsView } from '@/features/notifications/NotificationsView';
+import { AshaReportView } from '@/features/reports/AshaReportView';
 import { BottomNav, AshaTab } from '@/components/navigation/BottomNav';
 
 type AshaView =
@@ -31,6 +32,7 @@ type AshaView =
   | { name: 'tasks' }
   | { name: 'notifications' }
   | { name: 'medicine_requests' }
+  | { name: 'reports' }
   | { name: 'profile' };
 
 
@@ -96,6 +98,7 @@ export const AshaShell: React.FC = () => {
           onNavigateTasks={() => setCurrentView({ name: 'tasks' })}
           onNavigateMedicines={() => setCurrentView({ name: 'medicine_requests' })}
           onNavigateNotifications={() => setCurrentView({ name: 'notifications' })}
+          onNavigateReports={() => setCurrentView({ name: 'reports' })}
           onAddHousehold={() => setCurrentView({ name: 'add_household' })}
           onAddPatient={() => setCurrentView({ name: 'add_patient' })}
           onSelectPatient={(patient) => setCurrentView({ name: 'patient_profile', patient })}
@@ -248,6 +251,13 @@ export const AshaShell: React.FC = () => {
       {/* 13. Medicine Requests / Drug Kit (Phase 4) */}
       {currentView.name === 'medicine_requests' && (
         <MedicineRequestView
+          onBack={() => setCurrentView({ name: 'dashboard' })}
+        />
+      )}
+
+      {/* 14. Reports (Phase 8) */}
+      {currentView.name === 'reports' && (
+        <AshaReportView
           onBack={() => setCurrentView({ name: 'dashboard' })}
         />
       )}

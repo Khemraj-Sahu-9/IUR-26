@@ -62,6 +62,10 @@ class SyncManager {
     this._listeners.delete(fn);
   }
 
+  getState(): SyncManagerState {
+    return { ...this._state };
+  }
+
   private _emit() {
     this._listeners.forEach((fn) => {
       try { fn({ ...this._state }); } catch { /* ignore */ }

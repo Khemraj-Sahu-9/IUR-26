@@ -138,6 +138,15 @@ export const translations = {
     completeAction: 'Complete',
     dismissAction: 'Dismiss',
 
+    // Phase 8: Reports & Analytics
+    reportsTitle: 'Reports & Analytics',
+    workReport: 'My Work Report',
+    exportCsv: 'Export CSV',
+    fieldCoverage: 'Field Coverage',
+    dateRange: 'Date Range',
+    totalVisits: 'Total Visits',
+    viewReport: 'View Report',
+
     // Common UI
     save: 'Save',
     cancel: 'Cancel',
@@ -288,6 +297,15 @@ export const translations = {
     priorityTask: 'प्राथमिकता',
     completeAction: 'पूर्ण करें',
     dismissAction: 'खारिज करें',
+
+    // Phase 8: Reports & Analytics
+    reportsTitle: 'रिपोर्ट्स एवं विश्लेषण',
+    workReport: 'मेरी कार्य रिपोर्ट',
+    exportCsv: 'सीएसवी डाउनलोड करें',
+    fieldCoverage: 'क्षेत्र कवरेज',
+    dateRange: 'तिथि सीमा',
+    totalVisits: 'कुल भ्रमण',
+    viewReport: 'रिपोर्ट देखें',
 
     // Common UI
     save: 'सहेजें',

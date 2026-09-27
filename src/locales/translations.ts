@@ -125,6 +125,19 @@ export const translations = {
     badgePregnant: 'Pregnant',
     badgeChild: 'Child',
 
+    // Phase 7: Tasks & Notifications
+    tasksTitle: 'Tasks & Follow-ups',
+    notificationsTitle: 'Notifications',
+    markAllRead: 'Mark all read',
+    noTasks: 'No tasks scheduled',
+    todayTasks: 'Today\'s Tasks',
+    upcomingTasks: 'Upcoming Tasks',
+    overdueTasks: 'Overdue Tasks',
+    completedTasks: 'Completed Tasks',
+    priorityTask: 'Priority',
+    completeAction: 'Complete',
+    dismissAction: 'Dismiss',
+
     // Common UI
     save: 'Save',
     cancel: 'Cancel',
@@ -262,6 +275,19 @@ export const translations = {
     filterOverdue: 'अतिदेय फॉलो-अप (Overdue)',
     badgePregnant: 'गर्भवती',
     badgeChild: 'शिशु',
+
+    // Phase 7: Tasks & Notifications
+    tasksTitle: 'कार्य एवं फॉलो-अप',
+    notificationsTitle: 'सूचनाएं एवं अलर्ट',
+    markAllRead: 'सभी को पढ़ा हुआ चिह्नित करें',
+    noTasks: 'कोई कार्य निर्धारित नहीं है',
+    todayTasks: 'आज के कार्य',
+    upcomingTasks: 'आगामी कार्य',
+    overdueTasks: 'अतिदेय कार्य',
+    completedTasks: 'पूर्ण किए गए कार्य',
+    priorityTask: 'प्राथमिकता',
+    completeAction: 'पूर्ण करें',
+    dismissAction: 'खारिज करें',
 
     // Common UI
     save: 'सहेजें',

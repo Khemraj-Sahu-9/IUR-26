@@ -11,9 +11,10 @@ import { PatientProfileView } from '@/features/patients/PatientProfileView';
 import { EditPatientView } from '@/features/patients/EditPatientView';
 import { AddVisitView } from '@/features/visits/AddVisitView';
 import { AddReferralView } from '@/features/referrals/AddReferralView';
-import { FollowUpsListView } from '@/features/followups/FollowUpsListView';
 import { AshaProfileView } from '@/features/profile/AshaProfileView';
 import { MedicineRequestView } from '@/features/medicines/MedicineRequestView';
+import { TasksListView } from '@/features/tasks/TasksListView';
+import { NotificationsView } from '@/features/notifications/NotificationsView';
 import { BottomNav, AshaTab } from '@/components/navigation/BottomNav';
 
 type AshaView =
@@ -28,6 +29,7 @@ type AshaView =
   | { name: 'add_visit'; patient: Patient }
   | { name: 'add_referral'; patient: Patient }
   | { name: 'tasks' }
+  | { name: 'notifications' }
   | { name: 'medicine_requests' }
   | { name: 'profile' };
 
@@ -93,6 +95,7 @@ export const AshaShell: React.FC = () => {
           onNavigatePatients={() => setCurrentView({ name: 'patients_list' })}
           onNavigateTasks={() => setCurrentView({ name: 'tasks' })}
           onNavigateMedicines={() => setCurrentView({ name: 'medicine_requests' })}
+          onNavigateNotifications={() => setCurrentView({ name: 'notifications' })}
           onAddHousehold={() => setCurrentView({ name: 'add_household' })}
           onAddPatient={() => setCurrentView({ name: 'add_patient' })}
           onSelectPatient={(patient) => setCurrentView({ name: 'patient_profile', patient })}
@@ -219,10 +222,26 @@ export const AshaShell: React.FC = () => {
         />
       )}
 
-      {/* 11. Tasks / Follow-ups (Phase 3 Live) */}
+      {/* 11. Tasks View (Phase 7 Unified Tasks) */}
       {currentView.name === 'tasks' && (
-        <FollowUpsListView
+        <TasksListView
           onBack={() => setCurrentView({ name: 'dashboard' })}
+        />
+      )}
+
+      {/* 12. Notifications View (Phase 7) */}
+      {currentView.name === 'notifications' && (
+        <NotificationsView
+          onBack={() => setCurrentView({ name: 'dashboard' })}
+          onNavigateAction={(sourceType) => {
+            if (sourceType === 'medicine_order') {
+              setCurrentView({ name: 'medicine_requests' });
+            } else if (sourceType === 'task' || sourceType === 'follow_up') {
+              setCurrentView({ name: 'tasks' });
+            } else {
+              setCurrentView({ name: 'dashboard' });
+            }
+          }}
         />
       )}
 

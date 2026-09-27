@@ -120,11 +120,16 @@ export interface LocalMedicineOrder extends LocalMeta {
 }
 
 export interface LocalNotification extends LocalMeta {
-  user_id: string;
+  user_id?: string;
+  recipient_profile_id?: string;
   title: string;
   message: string;
   type: string;
-  read: boolean;
+  read?: boolean;
+  is_read?: boolean;
+  source_type?: string | null;
+  source_id?: string | null;
+  action_type?: string | null;
 }
 
 export interface LocalPregnancy extends LocalMeta {

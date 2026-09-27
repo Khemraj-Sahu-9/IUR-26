@@ -15,7 +15,8 @@ import {
   CheckCircle2, 
   Clock, 
   AlertCircle,
-  Plus
+  Plus,
+  Bell
 } from 'lucide-react';
 
 interface AshaDashboardProps {
@@ -23,6 +24,7 @@ interface AshaDashboardProps {
   onNavigatePatients: () => void;
   onNavigateTasks?: () => void;
   onNavigateMedicines?: () => void;
+  onNavigateNotifications?: () => void;
   onAddHousehold: () => void;
   onAddPatient: () => void;
   onSelectPatient: (patient: Patient) => void;
@@ -33,6 +35,7 @@ export const AshaDashboard: React.FC<AshaDashboardProps> = ({
   onNavigatePatients,
   onNavigateTasks,
   onNavigateMedicines,
+  onNavigateNotifications,
   onAddHousehold,
   onAddPatient,
   onSelectPatient,
@@ -45,6 +48,7 @@ export const AshaDashboard: React.FC<AshaDashboardProps> = ({
   const [visits, setVisits] = useState<Visit[]>([]);
   const [followups, setFollowups] = useState<FollowUp[]>([]);
   const [medicineOrders, setMedicineOrders] = useState<MedicineOrder[]>([]);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,18 +56,20 @@ export const AshaDashboard: React.FC<AshaDashboardProps> = ({
     try {
       setLoading(true);
       setError(null);
-      const [ptData, hhData, vstData, fuData, ordData] = await Promise.all([
+      const [ptData, hhData, vstData, fuData, ordData, notifCount] = await Promise.all([
         dataService.getPatients(),
         dataService.getHouseholds(),
         dataService.getVisits(),
         dataService.getFollowUps(),
         dataService.getMedicineOrders(),
+        dataService.getUnreadNotificationCount(),
       ]);
       setPatients(ptData);
       setHouseholds(hhData);
       setVisits(vstData);
       setFollowups(fuData);
       setMedicineOrders(ordData);
+      setUnreadNotifications(notifCount);
     } catch (err: unknown) {
       console.error('Failed to load dashboard data:', err);
       setError(err instanceof Error ? err.message : 'Database error loading field dashboard');
@@ -95,16 +101,33 @@ export const AshaDashboard: React.FC<AshaDashboardProps> = ({
     <div className="space-y-4 text-left">
       {/* Welcome Banner */}
       <Card className="bg-gradient-to-br from-emerald-600 to-emerald-800 text-white border-0 p-4">
-        <div className="space-y-1">
-          <p className="text-emerald-100 text-xs font-semibold uppercase tracking-wider">
-            {t.fieldDashboard}
-          </p>
-          <h2 className="text-xl font-bold">
-            {getGreeting()}, {profile?.full_name || 'Worker'}
-          </h2>
-          <p className="text-sm text-emerald-100">
-            {t.assignedWard}: <span className="font-semibold text-white">Ward 4 (Rampur)</span>
-          </p>
+        <div className="flex items-start justify-between">
+          <div className="space-y-1">
+            <p className="text-emerald-100 text-xs font-semibold uppercase tracking-wider">
+              {t.fieldDashboard}
+            </p>
+            <h2 className="text-xl font-bold">
+              {getGreeting()}, {profile?.full_name || 'Worker'}
+            </h2>
+            <p className="text-sm text-emerald-100">
+              {t.assignedWard}: <span className="font-semibold text-white">Ward 4 (Rampur)</span>
+            </p>
+          </div>
+          {onNavigateNotifications && (
+            <button
+              type="button"
+              onClick={onNavigateNotifications}
+              className="relative p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors"
+              title="Notifications"
+            >
+              <Bell className="w-5 h-5" />
+              {unreadNotifications > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-4.5 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-emerald-700">
+                  {unreadNotifications}
+                </span>
+              )}
+            </button>
+          )}
         </div>
       </Card>
 

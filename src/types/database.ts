@@ -153,6 +153,42 @@ export interface Notification {
   type: 'info' | 'alert' | 'approval' | 'sync';
   is_read: boolean;
   created_at: string;
+  source_type?: string | null;
+  source_id?: string | null;
+  action_type?: string | null;
+}
+
+// ─── Phase 7: Tasks ───────────────────────────────────────────────────────────
+
+export type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'dismissed' | 'overdue';
+export type TaskPriority = 'normal' | 'priority';
+export type TaskType =
+  | 'anc_visit'
+  | 'pnc_visit'
+  | 'immunization'
+  | 'follow_up'
+  | 'referral_followup'
+  | 'medicine_refill'
+  | 'general_checkup'
+  | 'overdue_alert';
+
+export interface Task {
+  id: string;
+  assigned_to: string;
+  task_type: TaskType;
+  source_type: string | null;
+  source_id: string | null;
+  patient_id: string | null;
+  title: string;
+  description: string | null;
+  due_date: string;
+  priority: TaskPriority;
+  status: TaskStatus;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  /** Joined patient name for display */
+  patient?: Pick<Patient, 'id' | 'full_name' | 'patient_code'> | null;
 }
 
 export interface AuditLog {

@@ -12,7 +12,11 @@ import {
   Notification,
   AshaWorker,
   Pregnancy,
-  PregnancyStatus
+  PregnancyStatus,
+  Task,
+  TaskType,
+  TaskStatus,
+  TaskPriority,
 } from '@/types/database';
 import { db, newLocalId, nowISO } from './offlineDatabase';
 import { syncManager } from './syncManager';
@@ -578,22 +582,7 @@ export const dataService = {
     })) as unknown as MedicineOrder[];
   },
 
-  // Notifications
-  async getNotifications(): Promise<Notification[]> {
-    try {
-      if (connectivityService.isOnline()) {
-        const { data, error } = await supabase
-          .from('notifications')
-          .select('*')
-          .order('created_at', { ascending: false });
-        if (!error && data) return data;
-      }
-    } catch {
-      // offline fallback
-    }
-    const local = await db.notifications.toArray();
-    return local as unknown as Notification[];
-  },
+
 
   // ASHA Workers (For Supervisor/Manager views)
   async getAshaWorkers(): Promise<AshaWorker[]> {
@@ -1344,6 +1333,353 @@ export const dataService = {
     }
 
     return updatedRecord;
+  },
+
+  // ─── Phase 7: Tasks ─────────────────────────────────────────────────────────
+
+  async getTasks(filters?: { status?: TaskStatus; assignedTo?: string }): Promise<Task[]> {
+    try {
+      if (connectivityService.isOnline()) {
+        let query = supabase
+          .from('tasks')
+          .select('*, patient:patients(id, full_name, patient_code)')
+          .order('due_date', { ascending: true });
+
+        if (filters?.status) query = query.eq('status', filters.status);
+        if (filters?.assignedTo) query = query.eq('assigned_to', filters.assignedTo);
+
+        const { data, error } = await query;
+        if (!error && data) return data as Task[];
+      }
+    } catch (err) {
+      console.warn('getTasks network failed, returning empty', err);
+    }
+    return [];
+  },
+
+  async getTasksByDateRange(from: string, to: string): Promise<Task[]> {
+    try {
+      if (connectivityService.isOnline()) {
+        const { data, error } = await supabase
+          .from('tasks')
+          .select('*, patient:patients(id, full_name, patient_code)')
+          .gte('due_date', from)
+          .lte('due_date', to)
+          .order('due_date', { ascending: true });
+        if (!error && data) return data as Task[];
+      }
+    } catch (err) {
+      console.warn('getTasksByDateRange failed', err);
+    }
+    return [];
+  },
+
+  async createTask(input: {
+    assigned_to: string;
+    task_type: TaskType;
+    source_type?: string | null;
+    source_id?: string | null;
+    patient_id?: string | null;
+    title: string;
+    description?: string | null;
+    due_date: string;
+    priority?: TaskPriority;
+  }): Promise<Task | null> {
+    try {
+      if (connectivityService.isOnline()) {
+        // Idempotency: check if a non-completed task for same source already exists
+        if (input.source_type && input.source_id) {
+          const { data: existing } = await supabase
+            .from('tasks')
+            .select('*')
+            .eq('source_type', input.source_type)
+            .eq('source_id', input.source_id)
+            .eq('task_type', input.task_type)
+            .not('status', 'in', '("completed","dismissed")')
+            .maybeSingle();
+          if (existing) return existing as Task;
+        }
+
+        const { data, error } = await supabase
+          .from('tasks')
+          .insert({ ...input, priority: input.priority || 'normal', status: 'pending' })
+          .select()
+          .single();
+        if (!error && data) {
+          await auditLogger.log({ action: 'TASK_CREATED', tableName: 'tasks', recordId: data.id, metadata: { task_type: input.task_type } });
+          return data as Task;
+        }
+        console.error('createTask error:', error);
+      }
+    } catch (err) {
+      console.error('createTask failed:', err);
+    }
+    return null;
+  },
+
+  async completeTask(taskId: string): Promise<Task | null> {
+    try {
+      if (connectivityService.isOnline()) {
+        const { data, error } = await supabase
+          .from('tasks')
+          .update({ status: 'completed', completed_at: new Date().toISOString() })
+          .eq('id', taskId)
+          .select()
+          .single();
+        if (!error && data) {
+          await auditLogger.log({ action: 'TASK_COMPLETED', tableName: 'tasks', recordId: taskId, metadata: {} });
+          return data as Task;
+        }
+      }
+    } catch (err) {
+      console.error('completeTask failed:', err);
+    }
+    return null;
+  },
+
+  async dismissTask(taskId: string): Promise<Task | null> {
+    try {
+      if (connectivityService.isOnline()) {
+        const { data, error } = await supabase
+          .from('tasks')
+          .update({ status: 'dismissed' })
+          .eq('id', taskId)
+          .select()
+          .single();
+        if (!error && data) return data as Task;
+      }
+    } catch (err) {
+      console.error('dismissTask failed:', err);
+    }
+    return null;
+  },
+
+  async getOverdueTasks(): Promise<Task[]> {
+    const today = new Date().toISOString().split('T')[0];
+    try {
+      if (connectivityService.isOnline()) {
+        const { data, error } = await supabase
+          .from('tasks')
+          .select('*, patient:patients(id, full_name, patient_code)')
+          .lt('due_date', today)
+          .in('status', ['pending', 'in_progress'])
+          .order('due_date', { ascending: true });
+        if (!error && data) return data as Task[];
+      }
+    } catch (err) {
+      console.warn('getOverdueTasks failed', err);
+    }
+    return [];
+  },
+
+  async getTaskCountsByStatus(): Promise<Record<string, number>> {
+    try {
+      if (connectivityService.isOnline()) {
+        const { data, error } = await supabase
+          .from('tasks')
+          .select('status');
+        if (!error && data) {
+          return data.reduce((acc: Record<string, number>, row: { status: string }) => {
+            acc[row.status] = (acc[row.status] || 0) + 1;
+            return acc;
+          }, {});
+        }
+      }
+    } catch (err) {
+      console.warn('getTaskCountsByStatus failed', err);
+    }
+    return {};
+  },
+
+  // ─── Phase 7: Notifications (improved) ──────────────────────────────────────
+
+  async getNotifications(): Promise<Notification[]> {
+    try {
+      if (connectivityService.isOnline()) {
+        const { data, error } = await supabase
+          .from('notifications')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(50);
+        if (!error && data) {
+          // Cache in local DB for offline display
+          for (const n of data) {
+            await db.notifications.put({
+              ...n,
+              sync_status: 'synced',
+              local_created_at: n.created_at,
+              local_updated_at: n.created_at,
+            }).catch(() => {});
+          }
+          return data as Notification[];
+        }
+      }
+    } catch (err) {
+      console.warn('getNotifications network failed, using local cache', err);
+    }
+    const local = await db.notifications.orderBy('local_created_at').reverse().limit(50).toArray();
+    return local.map(n => ({
+      id: n.id,
+      recipient_profile_id: n.recipient_profile_id || '',
+      title: n.title,
+      message: n.message,
+      type: (n.type || 'info') as Notification['type'],
+      is_read: n.is_read ?? false,
+      created_at: n.local_created_at,
+    }));
+  },
+
+  async getUnreadNotificationCount(): Promise<number> {
+    try {
+      if (connectivityService.isOnline()) {
+        const { count, error } = await supabase
+          .from('notifications')
+          .select('id', { count: 'exact', head: true })
+          .eq('is_read', false);
+        if (!error && count !== null) return count;
+      }
+    } catch {/* fallback */}
+    const local = await db.notifications.where('is_read').equals(0).count();
+    return local;
+  },
+
+  async markNotificationRead(id: string): Promise<void> {
+    try {
+      if (connectivityService.isOnline()) {
+        await supabase.from('notifications').update({ is_read: true }).eq('id', id);
+      }
+      await db.notifications.update(id, { is_read: true, read: true }).catch(() => {});
+    } catch (err) {
+      console.error('markNotificationRead failed:', err);
+    }
+  },
+
+  async markAllNotificationsRead(): Promise<void> {
+    try {
+      if (connectivityService.isOnline()) {
+        await supabase
+          .from('notifications')
+          .update({ is_read: true })
+          .eq('is_read', false);
+      }
+      await db.notifications.toCollection().modify((notif) => {
+        notif.is_read = true;
+        notif.read = true;
+      }).catch(() => {});
+    } catch (err) {
+      console.error('markAllNotificationsRead failed:', err);
+    }
+  },
+
+  async sendNotification(input: {
+    recipient_profile_id: string;
+    title: string;
+    message: string;
+    type?: Notification['type'];
+    source_type?: string;
+    source_id?: string;
+    action_type?: string;
+  }): Promise<void> {
+    try {
+      if (connectivityService.isOnline()) {
+        await supabase.from('notifications').insert({
+          recipient_profile_id: input.recipient_profile_id,
+          title: input.title,
+          message: input.message,
+          type: input.type || 'info',
+          is_read: false,
+          source_type: input.source_type || null,
+          source_id: input.source_id || null,
+          action_type: input.action_type || null,
+        });
+      }
+    } catch (err) {
+      console.error('sendNotification failed:', err);
+    }
+  },
+
+  // ─── Phase 7: Supervisor — ASHA Activity Overview ───────────────────────────
+
+  async getSupervisorStats(): Promise<{
+    totalAshas: number;
+    totalPatients: number;
+    visitsThisWeek: number;
+    pendingFollowUps: number;
+    pendingReferrals: number;
+    pendingMedicineOrders: number;
+  }> {
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    try {
+      if (connectivityService.isOnline()) {
+        const [ashas, patients, visits, followUps, referrals, orders] = await Promise.all([
+          supabase.from('asha_workers').select('id', { count: 'exact', head: true }).eq('is_active', true),
+          supabase.from('patients').select('id', { count: 'exact', head: true }).eq('status', 'active'),
+          supabase.from('visits').select('id', { count: 'exact', head: true }).gte('visit_date', weekAgo),
+          supabase.from('follow_ups').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+          supabase.from('referrals').select('id', { count: 'exact', head: true }).eq('status', 'referred'),
+          supabase.from('medicine_orders').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+        ]);
+        return {
+          totalAshas: ashas.count || 0,
+          totalPatients: patients.count || 0,
+          visitsThisWeek: visits.count || 0,
+          pendingFollowUps: followUps.count || 0,
+          pendingReferrals: referrals.count || 0,
+          pendingMedicineOrders: orders.count || 0,
+        };
+      }
+    } catch (err) {
+      console.warn('getSupervisorStats failed', err);
+    }
+    return { totalAshas: 0, totalPatients: 0, visitsThisWeek: 0, pendingFollowUps: 0, pendingReferrals: 0, pendingMedicineOrders: 0 };
+  },
+
+  async getRecentVisitsForSupervisor(limit = 10): Promise<Visit[]> {
+    try {
+      if (connectivityService.isOnline()) {
+        const { data, error } = await supabase
+          .from('visits')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(limit);
+        if (!error && data) return data as Visit[];
+      }
+    } catch (err) { console.warn(err); }
+    return [];
+  },
+
+  // ─── Phase 7: Manager — Inventory & Operational View ────────────────────────
+
+  async getManagerStats(): Promise<{
+    pendingMedicineOrders: number;
+    lowStockItems: number;
+    outOfStockItems: number;
+    fulfilledThisWeek: number;
+  }> {
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    try {
+      if (connectivityService.isOnline()) {
+        const [pending, stock, fulfilled] = await Promise.all([
+          supabase.from('medicine_orders').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+          supabase.from('medicine_stock').select('quantity, minimum_quantity'),
+          supabase.from('medicine_orders').select('id', { count: 'exact', head: true }).eq('status', 'fulfilled').gte('updated_at', weekAgo),
+        ]);
+
+        const stockData = stock.data || [];
+        const lowStock = stockData.filter((s: { quantity: number; minimum_quantity: number }) => s.quantity > 0 && s.quantity <= s.minimum_quantity).length;
+        const outOfStock = stockData.filter((s: { quantity: number }) => s.quantity === 0).length;
+
+        return {
+          pendingMedicineOrders: pending.count || 0,
+          lowStockItems: lowStock,
+          outOfStockItems: outOfStock,
+          fulfilledThisWeek: fulfilled.count || 0,
+        };
+      }
+    } catch (err) {
+      console.warn('getManagerStats failed', err);
+    }
+    return { pendingMedicineOrders: 0, lowStockItems: 0, outOfStockItems: 0, fulfilledThisWeek: 0 };
   },
 };
 

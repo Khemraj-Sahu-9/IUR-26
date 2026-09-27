@@ -25,6 +25,8 @@ export interface AuditLogPayload {
     | 'CHILD_RECORD_UPDATED'
     | 'CHILD_FOLLOW_UP_CREATED'
     | 'CHILD_FOLLOW_UP_COMPLETED'
+    | 'TASK_CREATED'
+    | 'TASK_COMPLETED'
     | 'USER_LOGIN' 
     | 'USER_LOGOUT';
 

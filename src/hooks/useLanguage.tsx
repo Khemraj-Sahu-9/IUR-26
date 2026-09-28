@@ -1,10 +1,14 @@
 import React, { createContext, useContext, useState, useMemo } from 'react';
 import { translations, Language, TranslationKey } from '@/locales/translations';
 
+export type TranslationFunction = {
+  (key: TranslationKey | string): string;
+} & Record<TranslationKey, string>;
+
 interface LanguageContextType {
   lang: Language;
   setLang: (lang: Language) => void;
-  t: Record<TranslationKey, string>;
+  t: TranslationFunction;
   toggleLang: () => void;
   availableLanguages: { code: Language; label: string; nativeLabel: string }[];
 }
@@ -55,10 +59,17 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const fallbackDict = translations.en;
 
     // Merge fallback so every key is guaranteed to resolve
-    return {
+    const merged = {
       ...fallbackDict,
       ...currentDict,
-    } as Record<TranslationKey, string>;
+    };
+
+    const fn = (key: TranslationKey | string): string => {
+      const k = key as string;
+      return (merged as Record<string, string>)[k] || (fallbackDict as Record<string, string>)[k] || k;
+    };
+
+    return Object.assign(fn, merged) as TranslationFunction;
   }, [lang]);
 
   return (

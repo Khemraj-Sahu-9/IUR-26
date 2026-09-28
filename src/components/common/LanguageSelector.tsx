@@ -88,11 +88,11 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
         aria-expanded={isOpen}
         aria-label="Select Language / भाषा चुनें"
         title="Change Language"
-        className="min-h-[44px] px-3 py-1.5 flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 font-semibold text-xs transition-colors shadow-2xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+        className="min-h-[48px] px-3.5 py-2 flex items-center gap-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 font-semibold text-xs sm:text-sm transition-colors shadow-2xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
       >
         <Globe className="w-4 h-4 text-emerald-600 shrink-0" />
         <span className="font-bold text-slate-800">
-          {lang === 'hi' ? 'हिन्दी' : 'EN'}
+          {lang === 'hi' ? 'हिन्दी' : 'English'}
         </span>
         <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>

@@ -1,106 +1,136 @@
-# ASHA Digital Platform — System Architecture
+# ASHA Saathi (आशा साथी) — Complete System Architecture
 
-## 1. Executive Overview
-The ASHA Digital Platform is an **offline-first Progressive Web Application (PWA)** engineered to replace manual registers for community health workers (ASHAs) across rural and semi-urban India. The system guarantees operational continuity under zero-connectivity conditions while maintaining strict role-based access, auditability, and data integrity with a central cloud backend.
+> **Architecture Specification & Component Design**  
+> **Target Release**: v1.0.0-hackathon (RC-1 Verified)
+
+---
+
+## 1. High-Level Architecture Overview
+
+ASHA Saathi is built on an **offline-first Progressive Web Application (PWA)** architecture. The system guarantees full field operability under zero cellular connectivity, while providing seamless cloud synchronization to sector supervisors and PHC facility managers.
 
 ```mermaid
 flowchart TD
-    subgraph Client ["Client Device (ASHA Mobile Phone / Browser)"]
-        UI["Mobile-First UI (React + Tailwind CSS)"]
-        State["Application State (Auth & Data Contexts)"]
-        DataService["Data Service (Supabase Client)"]
-        AuditService["Audit Logger (Non-blocking)"]
-        SW["Service Worker (PWA Offline Cache)"]
+    subgraph Frontline ["1. Frontline Field Operations (ASHA Worker)"]
+        AshaUI["ASHA Mobile PWA<br/>(React 18 + Tailwind CSS)"]
+        DexieDB[("Local IndexedDB<br/>(13 Dexie.js Tables)")]
+        SyncQueue["Sync Operation Queue<br/>(FIFO + FK Dependency Tree)"]
+        SW["Service Worker<br/>(App Shell Cache)"]
     end
 
-    subgraph Network ["Network Boundary"]
-        Detector["Online / Offline Event Listener"]
+    subgraph SyncEngine ["2. Intelligent Synchronization Layer"]
+        ConnProbe["Heartbeat Connectivity Probe<br/>(HEAD REST Ping)"]
+        SyncMgr["Sync Manager Engine<br/>(Exponential Backoff + Upserts)"]
     end
 
-    subgraph Backend ["Cloud Backend (Supabase)"]
-        Auth["Supabase Auth (JWT + RBAC)"]
-        Postgres[("PostgreSQL 17 Database")]
-        RLS["Row Level Security (Tenant & Role Isolation)"]
+    subgraph CloudBackend ["3. Cloud Data & Security Layer (Supabase)"]
+        Auth["GoTrue Authentication<br/>(JWT Claims & Sessions)"]
+        RLS["PostgreSQL Row Level Security<br/>(14 Multi-Tenant Policies)"]
+        PostgresDB[("PostgreSQL 17 Database<br/>(Tables, Views, Audit Logs)")]
+        Views["Analytical SQL Views<br/>(v_visits, v_stock, v_followups)"]
     end
 
-    UI --> State
-    State <--> DataService
-    State --> AuditService
-    Detector --> UI
-    DataService -- "HTTPS REST API (RLS Enforced)" --> Auth
+    subgraph Institutional ["4. Supervision & Logistics Portals"]
+        SupUI["Sector Supervisor Portal<br/>(Monitoring & Medicine Approvals)"]
+        MgrUI["PHC Manager Portal<br/>(Central Stock & Fulfillment)"]
+        Reports["Bilingual Reports & CSV Engine<br/>(RFC-4180 Exports)"]
+    end
+
+    %% Field writes
+    AshaUI -->|"1. Instant Local Write"| DexieDB
+    DexieDB -->|"2. Enqueue Mutation"| SyncQueue
+    SW -.->|"Precached Assets"| AshaUI
+
+    %% Synchronization
+    ConnProbe -->|"Online Broadcast"| SyncMgr
+    SyncQueue -->|"3. Ordered Batch"| SyncMgr
+    SyncMgr -->|"4. Idempotent Upsert (UUID)"| Auth
     Auth --> RLS
-    RLS --> Postgres
-    SW -.-> UI
+    RLS --> PostgresDB
+    PostgresDB --> Views
+
+    %% Upstream roles
+    Views --> SupUI
+    Views --> MgrUI
+    Views --> Reports
+    SupUI -->|"Requisition Approvals"| Auth
+    MgrUI -->|"Inventory Stock Updates"| Auth
 ```
 
-## 2. Directory Structure Implemented (Phase 1)
+---
+
+## 2. Architectural Pillars
+
+### Pillar 1: Offline-First Local Data Layer
+- **Client Storage**: All entity mutations (`households`, `patients`, `visits`, `follow_ups`, `referrals`, `medicines`, `medicine_orders`, `pregnancies`, `tasks`, `notifications`) write synchronously to local IndexedDB stores via Dexie.js.
+- **Latency**: User actions complete with sub-50ms UI response times regardless of network quality.
+- **Storage Quota**: IndexedDB stores tens of thousands of text records using less than 15MB of device memory.
+
+### Pillar 2: Relational Background Synchronization Engine
+- **Client-Side UUIDs**: Every record generated offline receives a UUID (`crypto.randomUUID()`) serving as both local primary key and server-side idempotency token.
+- **Dependency Ordering**: Prevents foreign key constraint violations on the server:
+  1. `households` (Family registry)
+  2. `patients` (Individual family members)
+  3. `pregnancies` (Maternal records)
+  4. `visits`, `follow_ups`, `referrals` (Clinical encounters)
+  5. `medicine_orders` (Supply requests)
+- **Zero Duplicates**: PostgreSQL `ON CONFLICT (id) DO UPDATE` ensures re-attempted requests never create duplicate rows.
+
+### Pillar 3: Multi-Tier Healthcare Access Control (RBAC & RLS)
+- **Zero Trust Client**: The client application never assumes trust. All REST queries pass user JWTs directly to PostgreSQL.
+- **Row Level Security (RLS)**: Enforced via PostgreSQL policies and helper function `get_current_role()`:
+  - **ASHA Workers**: Scoped strictly to `assigned_asha_id = auth.uid()`.
+  - **Supervisors**: Scoped to all ASHAs in their sector PHC.
+  - **Managers**: Facility-wide administrative access to central pharmacy depots.
+
+### Pillar 4: Shared Device Sanitization
+- Frontline workers frequently share tablet computers at Sub-Centres and PHCs.
+- Upon logout, `useAuth` executes an atomic `clearLocalDatabase()`, wiping all 13 IndexedDB stores and cached session tokens to prevent inter-worker health information leaks.
+
+---
+
+## 3. Complete Source Tree Layout
 
 ```
 .
-├── .agents/
-│   └── skills/                  # Domain, testing, and UI agent skills
-├── docs/                        # Architecture, database, security, demo specifications
-├── public/                      # Static assets & icons
+├── docs/                        # Architecture, deployment, runbooks, and QA reports
+├── public/                      # App icons, manifest, and offline assets
 ├── src/
 │   ├── components/
-│   │   └── common/              # Accessible Button, Input, Card, Badge, Alert, Spinner
-│   ├── constants/               # Demo credentials and static constants
+│   │   ├── common/              # Button, Input, Card, Badge, Alert, SyncStatusBar, OfflineBanner
+│   │   ├── households/          # HouseholdCard
+│   │   ├── navigation/          # BottomNav (Mobile 5-tab bar)
+│   │   ├── patients/            # PatientCard (with data-testid)
+│   │   └── reports/             # ReportFilters, ReportStatCard, StatusBarChart, VisitSparkline
+│   ├── constants/               # Demo personas and credentials
 │   ├── features/
-│   │   ├── asha/                # ASHA field worker dashboard shell
-│   │   ├── auth/                # Login screen with 1-tap demo personas
-│   │   ├── manager/             # PHC Manager inventory console
-│   │   └── supervisor/          # Supervisor sector oversight shell
-│   ├── hooks/                   # useAuth hook and AuthProvider
-│   ├── layouts/                 # AppLayout with persistent sync/offline indicator
-│   ├── lib/                     # Supabase client initialization
-│   ├── services/                # authService, dataService, auditLogger
-│   ├── types/                   # TypeScript database entities & schemas
-│   ├── utils/                   # Zod validation schemas
-│   ├── App.tsx                  # Root role-based router
-│   ├── index.css                # Tailwind directives & mobile touch tokens
-│   ├── main.tsx                 # React DOM root entry
-│   └── vite-env.d.ts            # Vite environment types
+│   │   ├── asha/                # AshaDashboard & AshaShell
+│   │   ├── auth/                # LoginView (1-tap demo personas)
+│   │   ├── followups/           # FollowUpsListView & FollowUpsSection
+│   │   ├── households/          # HouseholdsListView, AddHouseholdView, HouseholdDetailsView
+│   │   ├── manager/             # ManagerShell (Central PHC Admin)
+│   │   ├── maternal/            # MaternalSection & ChildTrackingSection
+│   │   ├── medicines/           # MedicineRequestView, SupervisorMedicineView, ManagerStockView
+│   │   ├── notifications/       # NotificationsView
+│   │   ├── patients/            # PatientsListView, AddPatientView, EditPatientView, PatientProfileView
+│   │   ├── profile/             # AshaProfileView & Language Switcher
+│   │   ├── referrals/           # AddReferralView & ReferralsSection
+│   │   ├── reports/             # AshaReportView, SupervisorReportView, ManagerReportView
+│   │   ├── supervisor/          # SupervisorShell
+│   │   ├── tasks/               # TasksListView
+│   │   └── visits/              # AddVisitView & VisitHistorySection
+│   ├── hooks/                   # useAuth, useConnectivity, useLanguage, useSyncState
+│   ├── layouts/                 # AppLayout (Header, SyncStatusBar, Page Container)
+│   ├── lib/                     # Supabase client singleton
+│   ├── locales/                 # Bilingual English/Hindi dictionary (translations.ts)
+│   ├── services/                # dataService, offlineDatabase, syncManager, auditLogger, reportService
+│   ├── types/                   # TypeScript database entities and enums
+│   ├── utils/                   # csvExport, maternalChildUtils, validation (Zod)
+│   ├── App.tsx                  # Root role-based shell router
+│   └── main.tsx                 # React DOM mount point
 ├── supabase/
-│   ├── migrations/              # PostgreSQL DDL migrations
-│   └── seed/                    # Demo catalog medicines and stock seed data
-├── tests/                       # Playwright E2E test suites
-├── package.json
-├── playwright.config.ts
-├── tailwind.config.js
-├── tsconfig.json
-└── vite.config.ts
+│   ├── migrations/              # 4 Ordered SQL migrations (Phase 1, 5, 7, 8)
+│   └── seed/                    # Demo seed and transactional reset scripts
+├── tests/                       # 7 Playwright E2E test suites (64 runs total)
+└── vercel.json                  # Production edge routing, PWA cache headers, and security rules
 ```
-
-## 3. Technology Evaluation & Decision Rationale
-
-| Layer | Chosen Technology | Why it was Chosen | Rejected Alternatives |
-|---|---|---|---|
-| **Build & UI** | Vite + React + TypeScript | Ultra-fast build times, lightweight bundle, zero server-rendering overhead. | Next.js (SSR unnecessary for client-first mobile app; hydration conflicts when offline). |
-| **Styling** | Tailwind CSS | Zero runtime overhead, 48px touch targets, accessible healthcare contrast tokens. | CSS Modules / Emotion (higher boilerplate, larger runtime). |
-| **Backend & DB** | Supabase (PostgreSQL 17) | Declarative RLS, built-in Auth, automatic REST APIs, schema migrations via MCP. | Custom Express/NestJS (redundant boilerplate for hackathon timeline). |
-| **Validation** | Zod | Runtime type safety, clear error messages for forms and API contracts. | Manual conditionals (prone to missing validation edge cases). |
-| **Testing** | Playwright | Mobile device emulation (Pixel 7, iPhone SE), headless execution, cross-role auth tests. | Cypress (heavier setup, less granular viewport control). |
-
-## 4. Phase 3 Workflow — Home Visits, Follow-ups & Referrals
-
-```mermaid
-flowchart LR
-    PP["Patient Profile"] --> Action{"ASHA Action"}
-    Action -->|"Record Visit"| VF["AddVisitView"]
-    Action -->|"Refer Patient"| RF["AddReferralView"]
-    
-    VF -->|"Insert visit"| DBV[("visits Table")]
-    VF -->|"Follow-up required?"| FUCheck{"Auto-create?"}
-    FUCheck -->|"Yes"| DBFU[("follow_ups Table")]
-    
-    RF -->|"Insert referral"| DBRef[("referrals Table")]
-    
-    DBFU --> LiveFU["FollowUpsSection & Tasks View"]
-    DBV --> LiveV["VisitHistorySection"]
-    DBRef --> LiveRef["ReferralsSection"]
-```
-
-- **Home Visits (`AddVisitView`)**: ASHA logs routine ANC, PNC, immunization, general checkup, or communicable disease checkups with vitals and clinical notes. If follow-up is checked, an auto-linked follow-up task is scheduled.
-- **Follow-up Reminders (`FollowUpsSection` & `FollowUpsListView`)**: Tracks pending, completed, overdue, and upcoming field tasks with 1-tap "Mark Done" status reconciliation.
-- **Referrals (`AddReferralView` & `ReferralsSection`)**: Direct referral to Sub-Centre, PHC, CHC, or District Hospital with clinical reason, transport details, and attendance tracking.
-

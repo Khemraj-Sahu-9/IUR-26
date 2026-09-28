@@ -60,8 +60,13 @@ export const LoginView: React.FC = () => {
             ASHA Saathi <span className="text-emerald-700">| आशा साथी</span>
           </h1>
           <p className="text-sm text-slate-600 font-medium">
-            Community Healthcare Field Companion
+            Offline-First Field Companion for Community Health Workers
           </p>
+          <div className="flex items-center justify-center gap-1.5 pt-1">
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
+              ⚡ Works Offline &amp; Auto-Syncs
+            </span>
+          </div>
         </div>
 
         {/* Quick Demo Personas (Essential for Hackathon Judges & Fast Testing) */}

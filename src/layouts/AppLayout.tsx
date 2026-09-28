@@ -1,9 +1,10 @@
 import React from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
+import { LanguageSelector } from '@/components/common/LanguageSelector';
 import { Badge } from '@/components/common/Badge';
 import { SyncStatusBar } from '@/components/common/SyncStatusBar';
-import { LogOut, Globe, HeartPulse } from 'lucide-react';
+import { LogOut, HeartPulse } from 'lucide-react';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -12,7 +13,7 @@ interface AppLayoutProps {
 
 export const AppLayout: React.FC<AppLayoutProps> = ({ children, title }) => {
   const { profile, role, signOut } = useAuth();
-  const { lang, toggleLang, t } = useLanguage();
+  const { t } = useLanguage();
 
   const roleBadgeMap = {
     asha: { label: t.ashaWorker, variant: 'emerald' as const },
@@ -51,14 +52,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, title }) => {
                 {currentRoleInfo.label}
               </Badge>
             </div>
-            <button
-              onClick={toggleLang}
-              className="min-h-[44px] px-2 flex items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 transition-colors text-xs font-semibold gap-1"
-              title="Toggle Language"
-            >
-              <Globe className="w-4 h-4" />
-              <span className="hidden sm:inline">{lang === 'hi' ? 'EN' : 'हि'}</span>
-            </button>
+            <LanguageSelector />
             <button
               onClick={() => signOut()}
               aria-label="Logout"

@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useLanguage } from '@/hooks/useLanguage';
 import { UserRole } from '@/types/database';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
 import { Card } from '@/components/common/Card';
 import { Alert } from '@/components/common/Alert';
+import { LanguageSelector } from '@/components/common/LanguageSelector';
 import { HeartPulse, UserCheck, ShieldCheck, Building2, KeyRound } from 'lucide-react';
 import { loginSchema } from '@/utils/validation';
 
 export const LoginView: React.FC = () => {
   const { signIn, signInAsDemo, loading, error: authError } = useAuth();
+  const { t } = useLanguage();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
@@ -49,7 +52,12 @@ export const LoginView: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center px-4 py-8">
+    <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center px-4 py-8 relative">
+      {/* Top Language Selector */}
+      <div className="absolute top-4 right-4 z-20">
+        <LanguageSelector />
+      </div>
+
       <div className="w-full max-w-md space-y-6">
         {/* Brand Banner */}
         <div className="text-center space-y-2">
@@ -74,7 +82,7 @@ export const LoginView: React.FC = () => {
           <div className="text-left space-y-3">
             <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-800">
               <KeyRound className="w-4 h-4" />
-              <span>Quick Demo Personas (1-Tap Login)</span>
+              <span>{t.quickDemoPersonas}</span>
             </div>
             <div className="grid grid-cols-1 gap-2">
               <Button
@@ -132,7 +140,7 @@ export const LoginView: React.FC = () => {
         <Card>
           <form onSubmit={handleManualLogin} className="space-y-4">
             <h2 className="text-base font-bold text-slate-800 text-left">
-              Standard Login
+              {t.standardLogin}
             </h2>
 
             {authError && (
@@ -142,7 +150,7 @@ export const LoginView: React.FC = () => {
             )}
 
             <Input
-              label="Email Address"
+              label={t.emailLabel}
               type="email"
               placeholder="worker@phc.in"
               value={email}
@@ -153,7 +161,7 @@ export const LoginView: React.FC = () => {
             />
 
             <Input
-              label="Password"
+              label={t.passwordLabel}
               type="password"
               placeholder="••••••••"
               value={password}
@@ -170,7 +178,7 @@ export const LoginView: React.FC = () => {
               className="w-full"
               isLoading={loading && demoLoadingRole === null}
             >
-              Sign In to ASHA Saathi
+              {t.signInButton}
             </Button>
           </form>
         </Card>

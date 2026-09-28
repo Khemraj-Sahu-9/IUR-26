@@ -42,7 +42,9 @@ Field workers frequently review screens in high ambient daylight. The UI elimina
 
 ## 4. Bilingual Localization & Cognitive Accessibility
 
-- **Instant Language Switching:** Single-tap language switcher in the header toggles between English and Hindi without reloading the page.
+- **Accessible Language Selector:** Accessible dropdown component with ARIA listbox semantics (`aria-haspopup="listbox"`, `aria-expanded`, `role="listbox"`, `role="option"`, `aria-selected`). Displays clear native language labels (`English` and `हिन्दी`) rather than ambiguous national flags.
+- **Mobile Touch Targets:** Dropdown triggers and options maintain minimum 44px–48px touch targets for easy finger tapping on mobile viewports.
+- **HTML Lang Synchronization:** Dynamically updates `document.documentElement.lang` (`en` or `hi`) so screen readers, text-to-speech, and braille displays pronounce and interpret syllables accurately.
 - **Bilingual Context Hints:** Form headers and confirmation dialogs present dual-language headings to assist workers transitioning from paper registers (e.g., *Maternal Checkup • मातृ जांच*, *Due Today • आज देय*).
 - **Clear Empty and Error States:** System errors display human-readable guidance in plain language with prominent "Try Again" / "पुनः प्रयास करें" buttons.
 

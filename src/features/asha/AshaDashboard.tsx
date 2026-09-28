@@ -147,7 +147,7 @@ export const AshaDashboard: React.FC<AshaDashboardProps> = ({
               <Calendar className="w-4 h-4 text-emerald-600" />
             </div>
             <div className="text-2xl font-bold text-slate-900">{todayVisitsCount}</div>
-            <p className="text-[11px] text-slate-500">Scheduled checkups</p>
+            <p className="text-[11px] text-slate-500">{t.scheduledCheckupsSub}</p>
           </Card>
 
           <Card className="p-3 text-left border-slate-200">
@@ -156,7 +156,7 @@ export const AshaDashboard: React.FC<AshaDashboardProps> = ({
               <Clock className="w-4 h-4 text-amber-600" />
             </div>
             <div className="text-2xl font-bold text-slate-900">{pendingFollowupsCount}</div>
-            <p className="text-[11px] text-slate-500">ANC / Immunization due</p>
+            <p className="text-[11px] text-slate-500">{t.ancDueSub}</p>
           </Card>
 
           <Card className="p-3 text-left border-slate-200">
@@ -165,7 +165,7 @@ export const AshaDashboard: React.FC<AshaDashboardProps> = ({
               <Pill className="w-4 h-4 text-purple-600" />
             </div>
             <div className="text-2xl font-bold text-slate-900">{pendingOrdersCount}</div>
-            <p className="text-[11px] text-slate-500">Pending PHC review</p>
+            <p className="text-[11px] text-slate-500">{t.pendingPhcReviewSub}</p>
           </Card>
 
           <Card className="p-3 text-left border-slate-200">
@@ -174,7 +174,7 @@ export const AshaDashboard: React.FC<AshaDashboardProps> = ({
               <AlertCircle className="w-4 h-4 text-red-600" />
             </div>
             <div className="text-2xl font-bold text-slate-900">{attentionCount}</div>
-            <p className="text-[11px] text-slate-500">Mothers in care</p>
+            <p className="text-[11px] text-slate-500">{t.mothersInCareSub}</p>
           </Card>
         </div>
       </div>
@@ -231,7 +231,7 @@ export const AshaDashboard: React.FC<AshaDashboardProps> = ({
             <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
               <Calendar className="w-4 h-4" />
             </div>
-            <span className="text-sm font-bold text-slate-800">Visits & Tasks</span>
+            <span className="text-sm font-bold text-slate-800">{t.visitsAndTasks}</span>
             <span className="text-xs text-slate-500">{t.homeVisitsLog}</span>
           </button>
 
@@ -244,7 +244,7 @@ export const AshaDashboard: React.FC<AshaDashboardProps> = ({
               <Pill className="w-4 h-4" />
             </div>
             <div className="flex items-center justify-between w-full">
-              <span className="text-sm font-bold text-slate-800">Drug Kit</span>
+              <span className="text-sm font-bold text-slate-800">{t.drugKit}</span>
               {pendingOrdersCount > 0 && (
                 <span className="text-xs font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">
                   {pendingOrdersCount}
@@ -281,7 +281,7 @@ export const AshaDashboard: React.FC<AshaDashboardProps> = ({
             className="col-span-2 min-h-[44px] px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 font-semibold text-sm flex items-center justify-center gap-1.5 hover:bg-slate-100 transition-colors"
           >
             <BarChart2 className="w-4 h-4 text-slate-500" />
-            <span>View My Work Report</span>
+            <span>{t.viewMyWorkReport}</span>
           </button>
         )}
       </div>

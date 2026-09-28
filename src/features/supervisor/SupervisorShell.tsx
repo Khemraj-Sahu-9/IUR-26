@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useLanguage } from '@/hooks/useLanguage';
 import { Card } from '@/components/common/Card';
 import { Badge } from '@/components/common/Badge';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
@@ -24,6 +25,7 @@ type SupervisorTab = 'overview' | 'monitoring' | 'maternal' | 'medicines' | 'rep
 
 export const SupervisorShell: React.FC = () => {
   const { profile } = useAuth();
+  const { t } = useLanguage();
   const [tab, setTab] = useState<SupervisorTab>('overview');
   
   // Overview stats
@@ -127,7 +129,7 @@ export const SupervisorShell: React.FC = () => {
           }`}
         >
           <BarChart2 className="w-3.5 h-3.5" />
-          Overview
+          {t.overviewTab}
         </button>
         <button
           onClick={() => setTab('monitoring')}
@@ -136,7 +138,7 @@ export const SupervisorShell: React.FC = () => {
           }`}
         >
           <CheckSquare className="w-3.5 h-3.5" />
-          Activity &amp; Monitoring
+          {t.monitoringTab}
         </button>
         <button
           onClick={() => setTab('maternal')}
@@ -145,7 +147,7 @@ export const SupervisorShell: React.FC = () => {
           }`}
         >
           <Baby className="w-3.5 h-3.5" />
-          Maternal
+          {t.maternalTab}
         </button>
         <button
           onClick={() => setTab('medicines')}
@@ -154,7 +156,7 @@ export const SupervisorShell: React.FC = () => {
           }`}
         >
           <Pill className="w-3.5 h-3.5" />
-          Medicines
+          {t.medicinesTab}
         </button>
         <button
           onClick={() => setTab('reports')}
@@ -163,7 +165,7 @@ export const SupervisorShell: React.FC = () => {
           }`}
         >
           <BarChart2 className="w-3.5 h-3.5" />
-          Reports
+          {t.reportsTab}
         </button>
       </div>
 

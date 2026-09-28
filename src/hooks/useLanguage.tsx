@@ -1,34 +1,76 @@
-import React, { createContext, useContext, useState } from 'react';
-import { translations, Language } from '@/locales/translations';
+import React, { createContext, useContext, useState, useMemo } from 'react';
+import { translations, Language, TranslationKey } from '@/locales/translations';
 
 interface LanguageContextType {
   lang: Language;
   setLang: (lang: Language) => void;
-  t: typeof translations['en'];
+  t: Record<TranslationKey, string>;
   toggleLang: () => void;
+  availableLanguages: { code: Language; label: string; nativeLabel: string }[];
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
+export const AVAILABLE_LANGUAGES: { code: Language; label: string; nativeLabel: string }[] = [
+  { code: 'en', label: 'English', nativeLabel: 'English' },
+  { code: 'hi', label: 'Hindi', nativeLabel: 'हिन्दी' },
+];
+
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [lang, setLangState] = useState<Language>(() => {
-    const saved = localStorage.getItem('asha_lang');
-    return (saved === 'en' || saved === 'hi') ? saved : 'en';
+    try {
+      const saved = localStorage.getItem('asha_lang');
+      return (saved === 'en' || saved === 'hi') ? saved : 'en';
+    } catch {
+      return 'en';
+    }
   });
 
   const setLang = (newLang: Language) => {
     setLangState(newLang);
-    localStorage.setItem('asha_lang', newLang);
+    try {
+      localStorage.setItem('asha_lang', newLang);
+      document.documentElement.lang = newLang;
+    } catch (err) {
+      console.warn('Could not persist language preference:', err);
+    }
   };
 
   const toggleLang = () => {
-    setLang(lang === 'hi' ? 'en' : 'hi');
+    setLangState((prev) => {
+      const next: Language = prev === 'hi' ? 'en' : 'hi';
+      try {
+        localStorage.setItem('asha_lang', next);
+        document.documentElement.lang = next;
+      } catch {
+        /* fallback */
+      }
+      return next;
+    });
   };
 
-  const t = translations[lang] || translations.en;
+  // Safe fallback translation dictionary: English acts as universal fallback for missing keys
+  const t = useMemo(() => {
+    const currentDict = translations[lang] || translations.en;
+    const fallbackDict = translations.en;
+
+    // Merge fallback so every key is guaranteed to resolve
+    return {
+      ...fallbackDict,
+      ...currentDict,
+    } as Record<TranslationKey, string>;
+  }, [lang]);
 
   return (
-    <LanguageContext.Provider value={{ lang, setLang, t, toggleLang }}>
+    <LanguageContext.Provider
+      value={{
+        lang,
+        setLang,
+        t,
+        toggleLang,
+        availableLanguages: AVAILABLE_LANGUAGES,
+      }}
+    >
       {children}
     </LanguageContext.Provider>
   );

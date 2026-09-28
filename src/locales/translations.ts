@@ -147,6 +147,41 @@ export const translations = {
     totalVisits: 'Total Visits',
     viewReport: 'View Report',
 
+    // Supervisor & Manager
+    supervisorPortal: 'Supervisor Portal',
+    fieldActivityMonitoring: 'Field Activity Monitoring',
+    activePregnanciesTitle: 'Active Pregnancies in Sector',
+    phcAdministration: 'PHC Administration',
+    drugRequisitionsQueue: 'Drug Requisitions Queue',
+    manageStockTitle: 'Manage Stock',
+    overviewTab: 'Overview',
+    monitoringTab: 'Activity & Monitoring',
+    maternalTab: 'Maternal',
+    medicinesTab: 'Medicines',
+    reportsTab: 'Reports',
+    requisitionsTab: 'Requisitions',
+    manageStockTab: 'Manage Stock',
+    operationsReport: 'Operations Report',
+    sectorReport: 'Sector Report',
+
+    // Dashboard Extras
+    visitsAndTasks: 'Visits & Tasks',
+    drugKit: 'Drug Kit',
+    viewMyWorkReport: 'View My Work Report',
+    scheduledCheckupsSub: 'Scheduled checkups',
+    ancDueSub: 'ANC / Immunization due',
+    pendingPhcReviewSub: 'Pending PHC review',
+    mothersInCareSub: 'Mothers in care',
+
+    // Language Selector & Login
+    language: 'Language',
+    selectLanguage: 'Select Language',
+    quickDemoPersonas: 'Quick Demo Personas (1-Tap Login)',
+    standardLogin: 'Standard Login',
+    signInButton: 'Sign In to ASHA Saathi',
+    emailLabel: 'Email Address',
+    passwordLabel: 'Password',
+
     // Common UI
     save: 'Save',
     cancel: 'Cancel',
@@ -307,6 +342,41 @@ export const translations = {
     totalVisits: 'कुल भ्रमण',
     viewReport: 'रिपोर्ट देखें',
 
+    // Supervisor & Manager
+    supervisorPortal: 'पर्यवेक्षक पोर्टल (Supervisor Portal)',
+    fieldActivityMonitoring: 'क्षेत्रीय गतिविधि निगरानी',
+    activePregnanciesTitle: 'सेक्टर में सक्रिय गर्भावस्थाएं',
+    phcAdministration: 'पीएचसी प्रशासन (PHC Administration)',
+    drugRequisitionsQueue: 'दवा मांग कतार (Requisitions Queue)',
+    manageStockTitle: 'दवा स्टॉक प्रबंधन',
+    overviewTab: 'अवलोकन (Overview)',
+    monitoringTab: 'गतिविधि एवं निगरानी',
+    maternalTab: 'मातृ स्वास्थ्य (Maternal)',
+    medicinesTab: 'दवाएं (Medicines)',
+    reportsTab: 'रिपोर्ट्स (Reports)',
+    requisitionsTab: 'दवा मांग (Requisitions)',
+    manageStockTab: 'स्टॉक प्रबंधन',
+    operationsReport: 'संचालन रिपोर्ट (Operations Report)',
+    sectorReport: 'सेक्टर रिपोर्ट (Sector Report)',
+
+    // Dashboard Extras
+    visitsAndTasks: 'गृह भ्रमण एवं कार्य',
+    drugKit: 'दवा किट',
+    viewMyWorkReport: 'मेरी कार्य रिपोर्ट देखें',
+    scheduledCheckupsSub: 'निर्धारित जांच व भ्रमण',
+    ancDueSub: 'गर्भावस्था / टीकाकरण देय',
+    pendingPhcReviewSub: 'पीएचसी समीक्षा लंबित',
+    mothersInCareSub: 'देखभाल में माताएं',
+
+    // Language Selector & Login
+    language: 'भाषा',
+    selectLanguage: 'भाषा चुनें',
+    quickDemoPersonas: 'त्वरित डेमो प्रोफाइल (1-टैप लॉगिन)',
+    standardLogin: 'मानक लॉगिन',
+    signInButton: 'आशा साथी में लॉगिन करें',
+    emailLabel: 'ईमेल पता',
+    passwordLabel: 'पासवर्ड',
+
     // Common UI
     save: 'सहेजें',
     cancel: 'रद्द करें',
@@ -321,4 +391,7 @@ export const translations = {
     all: 'सभी',
   },
 };
+
+export type TranslationKey = keyof typeof translations['en'];
+
 

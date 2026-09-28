@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useLanguage } from '@/hooks/useLanguage';
 import { Card } from '@/components/common/Card';
 import { Badge } from '@/components/common/Badge';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
@@ -22,6 +23,7 @@ type ManagerTab = 'overview' | 'stock' | 'requisitions' | 'reports';
 
 export const ManagerShell: React.FC = () => {
   const { profile } = useAuth();
+  const { t } = useLanguage();
   const [tab, setTab] = useState<ManagerTab>('overview');
   
   const [stats, setStats] = useState<{
@@ -102,7 +104,7 @@ export const ManagerShell: React.FC = () => {
           }`}
         >
           <ShoppingBag className="w-4 h-4" />
-          Overview
+          {t.overviewTab}
         </button>
         <button
           onClick={() => setTab('requisitions')}
@@ -111,7 +113,7 @@ export const ManagerShell: React.FC = () => {
           }`}
         >
           <Clock className="w-4 h-4" />
-          Requisitions
+          {t.requisitionsTab}
           {stats.pendingMedicineOrders > 0 && (
             <span className="ml-1 text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded-full">
               {stats.pendingMedicineOrders}
@@ -125,7 +127,7 @@ export const ManagerShell: React.FC = () => {
           }`}
         >
           <Layers className="w-4 h-4" />
-          Manage Stock
+          {t.manageStockTab}
         </button>
         <button
           onClick={() => setTab('reports')}
@@ -134,7 +136,7 @@ export const ManagerShell: React.FC = () => {
           }`}
         >
           <BarChart2 className="w-4 h-4" />
-          Reports
+          {t.reportsTab}
         </button>
       </div>
 

@@ -90,4 +90,7 @@ For judging, demonstrations, and E2E testing, 1-tap demo personas are available 
 - [QA Feature Matrix](docs/qa-matrix.md)
 - [QA Bug Tracking Log](docs/bug-log.md)
 - [Release Candidate Test Report (RC-1)](docs/release-test-report.md)
+- [Production Deployment Guide](docs/deployment.md)
+- [Live Hackathon Demo Runbook](docs/hackathon-demo-runbook.md)
+- [Production Rollback & Recovery Guide](docs/rollback.md)
 - [Hackathon Demo Choreography](docs/demo.md)

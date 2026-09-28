@@ -17,7 +17,8 @@
 
 type ConnectivityListener = (online: boolean) => void;
 
-const PROBE_URL = 'https://llvnlbhpxruhnbbhphbb.supabase.co/rest/v1/';
+const SUPABASE_BASE = import.meta.env.VITE_SUPABASE_URL || 'https://llvnlbhpxruhnbbhphbb.supabase.co';
+const PROBE_URL = `${SUPABASE_BASE.replace(/\/$/, '')}/rest/v1/`;
 const PROBE_TIMEOUT_MS = 5000;
 const DEBOUNCE_MS = 2000;
 
